@@ -1,0 +1,132 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.writing-font {
+  font-family: 'Playfair Display', Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+/* Premium Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+/* Glassmorphism overlays */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.glass-panel-dark {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Tiptap / ProseMirror List Styling */
+.ProseMirror ul,
+.prose ul {
+  list-style-type: disc !important;
+  margin-block-start: 1em !important;
+  margin-block-end: 1em !important;
+  padding-inline-start: 2rem !important;
+}
+
+.ProseMirror ol,
+.prose ol {
+  list-style-type: decimal !important;
+  margin-block-start: 1em !important;
+  margin-block-end: 1em !important;
+  padding-inline-start: 2rem !important;
+}
+
+.ProseMirror li,
+.prose li {
+  margin-block-start: 0.25rem !important;
+  margin-block-end: 0.25rem !important;
+  padding-inline-start: 0.25rem !important;
+}
+
+.ProseMirror:focus {
+  outline: none !important;
+}
+
+/* Headings and Paragraph Typography inside Editor */
+.ProseMirror h1,
+.prose h1 {
+  font-size: 2rem !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+  margin-top: 1.75rem !important;
+  margin-bottom: 0.75rem !important;
+  color: #0f172a !important; /* slate-900 */
+}
+
+.ProseMirror h2,
+.prose h2 {
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.6rem !important;
+  color: #1e293b !important; /* slate-800 */
+}
+
+.ProseMirror h3,
+.prose h3 {
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.5rem !important;
+  color: #334155 !important; /* slate-700 */
+}
+
+.ProseMirror p,
+.prose p {
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.75rem !important;
+  line-height: 1.7 !important;
+}
+
+/* Tiptap Placeholder style */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #94a3b8 !important; /* slate-400 */
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}
+
+
+

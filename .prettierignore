@@ -1,0 +1,9 @@
+node_modules
+dist
+build
+coverage
+pnpm-lock.yaml
+.papelito.db*
+sessions.db
+papelito.db
+.kimchi

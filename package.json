@@ -1,0 +1,26 @@
+{
+  "name": "papelito",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Papelito — TypeScript full-stack writing app",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "concurrently -n web,api -c blue,green \"pnpm --filter web dev\" \"pnpm --filter api dev\"",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint:fix",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "clean": "pnpm -r exec rm -rf dist node_modules/.cache"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
+  }
+}

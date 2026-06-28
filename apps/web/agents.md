@@ -1,0 +1,55 @@
+# AI Assistant Context: apps/web
+
+## Stack
+
+- Vite 5 + React 18 + TypeScript
+- React Router v7 (data APIs not used; plain `<BrowserRouter>`)
+- Tailwind CSS 3 + PostCSS
+- Tiptap (MIT core) for the rich-text editor
+- `@testing-library/react` + Vitest + jsdom for tests
+
+## Entry points
+
+- `src/main.tsx` — renders `<App />` into the DOM.
+- `src/App.tsx` — router setup + `AuthProvider` wrapper.
+- `index.html` — Vite entry HTML.
+
+## Architecture
+
+```
+App.tsx
+  ├── AuthProvider (src/context/AuthContext.tsx)   ← global auth state
+  ├── BrowserRouter
+  │     ├── LandingPage, LoginPage, RegisterPage, CheckoutReturnPage
+  │     └── ProtectedRoute → EditorPage
+```
+
+## Key directories
+
+- `src/pages/` — top-level route pages.
+- `src/components/` — reusable UI components (Header, Footer, editor pieces, dialogs).
+- `src/context/` — `AuthContext.tsx` only.
+- `src/hooks/` — `useAuth.ts`, `useDocuments.ts`, `useBilling.ts`.
+- `src/lib/` — `api.ts` (centralized fetch helper) and `tiptapExtensions.ts`.
+- `src/index.css` — Tailwind directives + app styles.
+- `src/test-setup.ts` — Vitest setup (imports `@testing-library/jest-dom`).
+
+## Conventions
+
+- Functional components with explicit `JSX.Element` return types.
+- Data fetching goes through `src/lib/api.ts`, which always sends `credentials: 'include'` so the session cookie is included.
+- `api()` throws `ApiError` on non-2xx responses; components/hooks should catch and surface `err.message`.
+- Auth state is loaded once on app mount via `/api/auth/me` inside `AuthProvider`.
+- The editor route (`/editor`) is protected by `ProtectedRoute` (requires login). Subscription gating is handled inside `EditorPage` (API returns 403 for non-subscribers).
+
+## Testing
+
+- Run: `pnpm test` (or `vitest run`).
+- Config in `vite.config.ts` under `test: { environment: 'jsdom', globals: true, setupFiles: ['./src/test-setup.ts'] }`.
+- Tests that render components inside `AuthProvider` should wait for the initial `/api/auth/me` fetch to settle (e.g., `await waitFor(...)`) to avoid React `act()` warnings.
+
+## Common pitfalls
+
+- `AuthContext.tsx` exports both a component (`AuthProvider`) and a context object (`AuthContext`), which triggers `react-refresh/only-export-components` warnings. This is intentional for context providers and should not be "fixed" by splitting unless there is a concrete reason.
+- Tiptap content is ProseMirror JSON; the backend stores it as a JSON string.
+- Do NOT introduce Tiptap Pro/extensions with non-MIT licenses. Tiptap core + free starter-kit extensions are MIT and safe.
