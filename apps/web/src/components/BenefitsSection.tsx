@@ -35,11 +35,7 @@ const benefits: Benefit[] = [
         strokeWidth="2"
         className="h-6 w-6"
       >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M4 4v16h16V8l-4-4H4zM4 14h16M9 8h6"
-        />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v16h16V8l-4-4H4zM4 14h16M9 8h6" />
       </svg>
     ),
   },
@@ -96,9 +92,7 @@ export function BenefitsSection(): JSX.Element {
               <h3 className="mt-6 text-lg font-bold text-slate-900 group-hover:text-indigo-950 transition-colors">
                 {benefit.title}
               </h3>
-              <p className="mt-3 text-sm leading-relaxed text-slate-500">
-                {benefit.description}
-              </p>
+              <p className="mt-3 text-sm leading-relaxed text-slate-500">{benefit.description}</p>
             </li>
           ))}
         </ul>

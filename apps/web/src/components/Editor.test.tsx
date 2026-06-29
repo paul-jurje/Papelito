@@ -16,13 +16,7 @@ afterEach(() => {
 
 describe('Editor', () => {
   it('eventually mounts the editor surface and marks the wrapper as ready', async () => {
-    render(
-      <Editor
-        content={null}
-        onChange={() => {}}
-        editable
-      />,
-    );
+    render(<Editor content={null} onChange={() => {}} editable />);
 
     // Tiptap may initialize synchronously (so the loading state may already
     // be gone) or asynchronously — only assert that the surface eventually
@@ -31,20 +25,11 @@ describe('Editor', () => {
       expect(screen.getByTestId('editor-surface')).toBeInTheDocument();
     });
     expect(screen.queryByTestId('editor-loading')).not.toBeInTheDocument();
-    expect(screen.getByTestId('editor-wrapper')).toHaveAttribute(
-      'data-ready',
-      'true',
-    );
+    expect(screen.getByTestId('editor-wrapper')).toHaveAttribute('data-ready', 'true');
   });
 
   it('renders a formatting toolbar with bold, italic, heading, and list buttons', async () => {
-    render(
-      <Editor
-        content={null}
-        onChange={() => {}}
-        editable
-      />,
-    );
+    render(<Editor content={null} onChange={() => {}} editable />);
 
     await waitFor(() => {
       expect(screen.getByTestId('editor-surface')).toBeInTheDocument();
@@ -53,31 +38,15 @@ describe('Editor', () => {
     const toolbar = screen.getByTestId('editor-toolbar');
     expect(toolbar).toHaveAttribute('role', 'toolbar');
 
-    expect(
-      toolbar.querySelector('[data-testid="toolbar-bold"]'),
-    ).toBeInTheDocument();
-    expect(
-      toolbar.querySelector('[data-testid="toolbar-italic"]'),
-    ).toBeInTheDocument();
-    expect(
-      toolbar.querySelector('[data-testid="toolbar-heading"]'),
-    ).toBeInTheDocument();
-    expect(
-      toolbar.querySelector('[data-testid="toolbar-bullet-list"]'),
-    ).toBeInTheDocument();
-    expect(
-      toolbar.querySelector('[data-testid="toolbar-ordered-list"]'),
-    ).toBeInTheDocument();
+    expect(toolbar.querySelector('[data-testid="toolbar-bold"]')).toBeInTheDocument();
+    expect(toolbar.querySelector('[data-testid="toolbar-italic"]')).toBeInTheDocument();
+    expect(toolbar.querySelector('[data-testid="toolbar-heading"]')).toBeInTheDocument();
+    expect(toolbar.querySelector('[data-testid="toolbar-bullet-list"]')).toBeInTheDocument();
+    expect(toolbar.querySelector('[data-testid="toolbar-ordered-list"]')).toBeInTheDocument();
   });
 
   it('hides the toolbar when editable is false', async () => {
-    render(
-      <Editor
-        content={null}
-        onChange={() => {}}
-        editable={false}
-      />,
-    );
+    render(<Editor content={null} onChange={() => {}} editable={false} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('editor-surface')).toBeInTheDocument();
@@ -97,13 +66,7 @@ describe('Editor', () => {
       ],
     };
 
-    render(
-      <Editor
-        content={initial}
-        onChange={() => {}}
-        editable
-      />,
-    );
+    render(<Editor content={initial} onChange={() => {}} editable />);
 
     await waitFor(() => {
       expect(screen.getByTestId('editor-surface')).toBeInTheDocument();
@@ -114,13 +77,7 @@ describe('Editor', () => {
   });
 
   it('renders an empty editor when content is null', async () => {
-    render(
-      <Editor
-        content={null}
-        onChange={() => {}}
-        editable
-      />,
-    );
+    render(<Editor content={null} onChange={() => {}} editable />);
 
     await waitFor(() => {
       expect(screen.getByTestId('editor-surface')).toBeInTheDocument();

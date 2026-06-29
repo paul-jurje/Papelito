@@ -12,16 +12,16 @@ delete / save is gated by an active subscription that is confirmed
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Vite, React, React Router, Tailwind CSS, Tiptap (MIT core) |
-| Editor | Tiptap + ProseMirror (JSON content stored in the DB) |
-| Backend | Node.js, Express, Passport (local strategy), `express-session` |
-| Database | SQLite via `better-sqlite3` + Drizzle ORM |
-| Sessions | `connect-sqlite3` (sessions persisted to the same SQLite DB) |
-| Payments | Stripe Checkout (test mode) + webhook for server-side gating |
-| Auth | Email + password, hashed with `bcrypt` |
-| Tooling | pnpm workspaces, TypeScript everywhere, Vitest, ESLint/Prettier |
+| Layer    | Technology                                                      |
+| -------- | --------------------------------------------------------------- |
+| Frontend | Vite, React, React Router, Tailwind CSS, Tiptap (MIT core)      |
+| Editor   | Tiptap + ProseMirror (JSON content stored in the DB)            |
+| Backend  | Node.js, Express, Passport (local strategy), `express-session`  |
+| Database | SQLite via `better-sqlite3` + Drizzle ORM                       |
+| Sessions | `connect-sqlite3` (sessions persisted to the same SQLite DB)    |
+| Payments | Stripe Checkout (test mode) + webhook for server-side gating    |
+| Auth     | Email + password, hashed with `bcrypt`                          |
+| Tooling  | pnpm workspaces, TypeScript everywhere, Vitest, ESLint/Prettier |
 
 ## Architecture
 
@@ -92,8 +92,8 @@ Copy the example env file and edit the values:
 cp .env.example .env
 ```
 
-The API refuses to start without `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
-and `STRIPE_PRICE_ID`. See [Environment Variables](#environment-variables)
+The API refuses to start without `STRIPE_SECRET_KEY` and
+`STRIPE_WEBHOOK_SECRET`. See [Environment Variables](#environment-variables)
 below for the full list and what each one does.
 
 ## Run Database Migrations
@@ -155,22 +155,19 @@ your `sk_test_...` secret key into `.env`:
 STRIPE_SECRET_KEY=sk_test_...
 ```
 
-### 2. Create the subscription price
+### 2. Create subscription prices
 
 1. Open the Stripe dashboard → **Products** → **Add product**.
-2. Give it a name (e.g. "Papelito Monthly") and a description.
-3. Set **Pricing model** = **Recurring**, **Price** = `$9` USD (or whatever
-   you'd like), **Billing period** = **Monthly**.
-4. Save the product and copy the new Price's id — it looks like
-   `price_1ABCdef...`.
-5. Paste it into `.env`:
+2. Give each plan a name (e.g. "Papelito Monthly", "Papelito Annual") and a
+   description.
+3. Set **Pricing model** = **Recurring**, choose a price and currency, and
+   pick a billing period (**Monthly**, **Yearly**, etc.).
+4. Save each product. On startup the API calls `syncPlansFromStripe()`, which
+   upserts every active recurring Stripe price into the local `plans` table.
 
-```
-STRIPE_PRICE_ID=price_1ABCdef...
-```
-
-The `POST /api/billing/checkout-session` endpoint uses this id to build the
-Checkout Session's line item.
+The frontend fetches the available plans from `GET /api/billing/plans` and
+passes the selected local `planId` to `POST /api/billing/checkout-session`.
+No single `STRIPE_PRICE_ID` is required in `.env`.
 
 ### 3. Forward webhooks to your local server
 
@@ -207,15 +204,14 @@ the `/checkout-return?success=true` page.
 All variables live in `.env` at the repo root (loaded by `dotenv` in
 `apps/api/src/db/index.ts`).
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `DATABASE_URL` | No | `papelito.db` | SQLite file path (relative paths resolve against `apps/api/`). |
-| `SESSION_SECRET` | No | `dev-secret-do-not-use-in-prod` | Signs the session cookie. Set to a long random string in production. |
-| `STRIPE_SECRET_KEY` | **Yes** | — | Stripe test-mode secret key (`sk_test_...`). The API refuses to start without it. |
-| `STRIPE_WEBHOOK_SECRET` | **Yes** | — | Webhook signing secret (`whsec_...`). Used to verify the HMAC signature Stripe sends on every webhook delivery. |
-| `STRIPE_PRICE_ID` | **Yes** | — | Stripe Price id (`price_...`) for the monthly subscription. Used as the line item in Checkout. |
-| `PORT` | No | `3000` | Port the Express API binds to. |
-| `WEB_ORIGIN` | No | `http://localhost:5173` | Origin of the frontend web app. Used to configure CORS so the browser will send the session cookie on cross-origin requests. In production, set this to the deployed frontend URL (e.g. `https://app.example.com`). |
+| Variable                | Required | Default                         | Description                                                                                                                                                                                                         |
+| ----------------------- | -------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`          | No       | `papelito.db`                   | SQLite file path (relative paths resolve against `apps/api/`).                                                                                                                                                      |
+| `SESSION_SECRET`        | No       | `dev-secret-do-not-use-in-prod` | Signs the session cookie. Set to a long random string in production.                                                                                                                                                |
+| `STRIPE_SECRET_KEY`     | **Yes**  | —                               | Stripe test-mode secret key (`sk_test_...`). The API refuses to start without it.                                                                                                                                   |
+| `STRIPE_WEBHOOK_SECRET` | **Yes**  | —                               | Webhook signing secret (`whsec_...`). Used to verify the HMAC signature Stripe sends on every webhook delivery.                                                                                                     |
+| `PORT`                  | No       | `3000`                          | Port the Express API binds to.                                                                                                                                                                                      |
+| `WEB_ORIGIN`            | No       | `http://localhost:5173`         | Origin of the frontend web app. Used to configure CORS so the browser will send the session cookie on cross-origin requests. In production, set this to the deployed frontend URL (e.g. `https://app.example.com`). |
 
 In tests, `NODE_ENV=test` is set by `apps/api/src/test/setup.ts`, which also
 seeds placeholder Stripe env vars so the SDK constructor doesn't throw at
@@ -223,14 +219,33 @@ module load. The integration test in
 `apps/api/src/tests/integration/documents.integration.test.ts` further mocks
 the Stripe SDK so no real network calls are made.
 
+## Billing
+
+The API is multi-plan and no longer depends on a single hardcoded Stripe
+price.
+
+- `GET /api/billing/plans` returns the active plans synced from Stripe, each
+  with `id`, `displayName`, `interval`, `amountCents`, and `currency`.
+- `POST /api/billing/checkout-session` requires `{ planId }` (selected from
+  the plans endpoint) and returns `{ url, sessionId }`. An invalid or
+  inactive `planId` responds with `400`.
+- On startup the API runs `syncPlansFromStripe()` to sync active recurring
+  Stripe prices into the local `plans` table.
+- Webhooks (`customer.subscription.updated`,
+  `checkout.session.completed`) resolve the matching local `planId` from the
+  Stripe price id on the subscription item(s).
+
 ## How Subscription Gating Works
 
 1. The user clicks **Subscribe** on the marketing site (or the upsell page
    in the editor when not subscribed).
-2. The frontend calls `POST /api/billing/checkout-session` with the session
-   cookie.
-3. The API creates a Stripe Customer (or reuses an existing one) and a
-   Stripe Checkout Session in `subscription` mode, returning the URL.
+2. The frontend calls `GET /api/billing/plans`, presents the list to the
+   user, and then calls `POST /api/billing/checkout-session` with the session
+   cookie and `{ planId }` for the selected plan.
+3. The API validates the `planId` against the synced `plans` table, then
+   creates a Stripe Customer (or reuses an existing one) and a Stripe
+   Checkout Session in `subscription` mode using that plan's Stripe price,
+   returning the URL.
 4. The frontend redirects to Stripe Checkout. The user pays with the test
    card `4242 4242 4242 4242`.
 5. Stripe redirects back to `/checkout-return?success=true&session_id=...`.
@@ -239,6 +254,8 @@ the Stripe SDK so no real network calls are made.
    - verifies the HMAC signature with `STRIPE_WEBHOOK_SECRET`,
    - retrieves the live subscription to pick up the authoritative status
      and `current_period_end`,
+   - resolves the matching local `planId` from the Stripe price id on the
+     subscription item(s),
    - upserts the row in the `subscriptions` table,
    - responds `200 { received: true }`.
 7. The `/checkout-return` page refetches `/api/auth/me`, which now reports

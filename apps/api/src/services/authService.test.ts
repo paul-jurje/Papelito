@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { app } from '../index.js';
+
 import { getUserByEmail } from '../repositories/userRepository.js';
 import { db } from '../db/index.js';
-import { users } from '../db/schema.js';
+
 import { createTestDb, type TestDbHandle } from '../test/createTestDb.js';
 import { register, EmailAlreadyExistsError } from './authService.js';
 import { verifyPassword } from '../lib/password.js';

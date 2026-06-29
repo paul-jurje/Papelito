@@ -15,7 +15,7 @@ export interface UpdateDocumentRequest {
 }
 
 export interface DocumentResponse {
-  id: number;
+  id: string;
   userId: number;
   title: string;
   content: string;

@@ -12,10 +12,7 @@ export class EmailAlreadyExistsError extends Error {
   }
 }
 
-export async function register(
-  email: string,
-  password: string,
-): Promise<SafeUser> {
+export async function register(email: string, password: string): Promise<SafeUser> {
   const existing = getUserByEmail(db, email);
   if (existing) {
     throw new EmailAlreadyExistsError(email);

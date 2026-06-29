@@ -37,10 +37,7 @@ function extractErrorMessage(payload: unknown, fallback: string): string {
   return fallback;
 }
 
-export async function api<T = unknown>(
-  path: string,
-  options: ApiRequestOptions = {},
-): Promise<T> {
+export async function api<T = unknown>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const { method = 'GET', body, headers = {}, signal } = options;
 
   const init: RequestInit = {
@@ -75,10 +72,7 @@ export async function api<T = unknown>(
   }
 
   if (!response.ok) {
-    const message = extractErrorMessage(
-      parsed,
-      `Request failed with status ${response.status}`,
-    );
+    const message = extractErrorMessage(parsed, `Request failed with status ${response.status}`);
     throw new ApiError(message, response.status);
   }
 

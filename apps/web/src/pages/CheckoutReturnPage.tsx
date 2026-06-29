@@ -50,11 +50,7 @@ export function CheckoutReturnPage(): ReactNode {
           setState('success');
           navigate('/editor', { replace: true });
         } catch (err: unknown) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : 'Could not finalize your subscription.',
-          );
+          setError(err instanceof Error ? err.message : 'Could not finalize your subscription.');
           setState('success');
           // Still navigate — the user paid, they shouldn't be stuck here.
           navigate('/editor', { replace: true });
@@ -90,12 +86,10 @@ export function CheckoutReturnPage(): ReactNode {
             data-testid="checkout-cancelled"
             className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm"
           >
-            <h1 className="text-2xl font-semibold text-slate-900">
-              Checkout cancelled
-            </h1>
+            <h1 className="text-2xl font-semibold text-slate-900">Checkout cancelled</h1>
             <p className="mt-3 text-sm text-slate-600">
-              No worries — you weren&apos;t charged. You can come back any
-              time and subscribe when you&apos;re ready.
+              No worries — you weren&apos;t charged. You can come back any time and subscribe when
+              you&apos;re ready.
             </p>
             <div className="mt-6 flex flex-col items-center gap-2">
               <Link
@@ -105,10 +99,7 @@ export function CheckoutReturnPage(): ReactNode {
               >
                 Back to pricing
               </Link>
-              <Link
-                to="/"
-                className="text-sm font-medium text-slate-600 hover:text-slate-900"
-              >
+              <Link to="/" className="text-sm font-medium text-slate-600 hover:text-slate-900">
                 Go to homepage
               </Link>
             </div>
@@ -144,22 +135,20 @@ export function CheckoutReturnPage(): ReactNode {
               : 'Hang tight while we confirm your payment with Stripe.'}
           </p>
           {sessionId !== null && (
-            <p className="mt-4 break-all text-xs text-slate-400">
-              Session: {sessionId}
-            </p>
+            <p className="mt-4 break-all text-xs text-slate-400">Session: {sessionId}</p>
           )}
           {error !== null && (
-            <p
-              role="alert"
-              data-testid="checkout-error"
-              className="mt-4 text-sm text-red-600"
-            >
+            <p role="alert" data-testid="checkout-error" className="mt-4 text-sm text-red-600">
               {error}
             </p>
           )}
           {!isAuthLoading && !isAuthenticated && state === 'loading' && (
             <p className="mt-4 text-sm text-slate-500">
-              You may need to <Link to="/login" className="underline">log in</Link> to continue.
+              You may need to{' '}
+              <Link to="/login" className="underline">
+                log in
+              </Link>{' '}
+              to continue.
             </p>
           )}
         </div>

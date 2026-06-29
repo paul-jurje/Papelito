@@ -25,7 +25,10 @@ export function Header(): JSX.Element {
       data-testid="header"
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link to="/" className="group flex items-center gap-2.5 text-lg font-bold tracking-tight text-slate-900">
+        <Link
+          to="/"
+          className="group flex items-center gap-2.5 text-lg font-bold tracking-tight text-slate-900"
+        >
           <span
             aria-hidden="true"
             className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-black text-white shadow-sm transition-transform group-hover:scale-105"
@@ -35,7 +38,10 @@ export function Header(): JSX.Element {
           <span className="transition-colors group-hover:text-indigo-600">Papelito</span>
         </Link>
 
-        <nav aria-label="Primary" className="hidden gap-8 text-sm font-semibold text-slate-500 md:flex">
+        <nav
+          aria-label="Primary"
+          className="hidden gap-8 text-sm font-semibold text-slate-500 md:flex"
+        >
           <a href="#features" className="transition-colors hover:text-slate-900">
             Features
           </a>

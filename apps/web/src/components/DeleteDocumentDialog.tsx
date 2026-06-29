@@ -45,29 +45,19 @@ export function DeleteDocumentDialog({
       className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/50 px-4"
     >
       <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
-        <h2
-          id="delete-dialog-title"
-          className="text-base font-semibold text-slate-900"
-        >
+        <h2 id="delete-dialog-title" className="text-base font-semibold text-slate-900">
           Delete document?
         </h2>
         <p className="mt-1 text-sm text-slate-600">
           This will permanently delete{' '}
-          <span
-            data-testid="delete-dialog-title-preview"
-            className="font-medium text-slate-900"
-          >
+          <span data-testid="delete-dialog-title-preview" className="font-medium text-slate-900">
             {title}
           </span>
           . This action cannot be undone.
         </p>
 
         {error !== null && (
-          <p
-            role="alert"
-            data-testid="delete-dialog-error"
-            className="mt-3 text-sm text-red-600"
-          >
+          <p role="alert" data-testid="delete-dialog-error" className="mt-3 text-sm text-red-600">
             {error}
           </p>
         )}

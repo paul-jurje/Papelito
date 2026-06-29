@@ -12,4 +12,3 @@ process.env.NODE_ENV = 'test';
 // needed to satisfy the module-load guard.
 process.env.STRIPE_SECRET_KEY = 'sk_test_setup_placeholder';
 process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_setup_placeholder';
-process.env.STRIPE_PRICE_ID = 'price_test_setup_placeholder';

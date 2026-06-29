@@ -2,10 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDb, type TestDbHandle } from '../test/createTestDb.js';
 import { subscriptions } from '../db/schema.js';
 import { createUser } from './userRepository.js';
-import {
-  createOrUpdateSubscription,
-  getSubscriptionByUserId,
-} from './subscriptionRepository.js';
+import { createOrUpdateSubscription, getSubscriptionByUserId } from './subscriptionRepository.js';
+import { upsertPlan } from './planRepository.js';
 
 function makeUser(handle: TestDbHandle, email: string): number {
   return createUser(handle.db, { email, passwordHash: 'hash' }).id;
@@ -76,13 +74,80 @@ describe('subscriptionRepository', () => {
       expect(updated.currentPeriodEnd?.getTime()).toBe(periodEnd.getTime());
     });
 
-    it('enforces one subscription per user via the unique constraint', () => {
+    it('persists planId on insert and returns it', () => {
+      const plan = upsertPlan(handle.db, {
+        stripePriceId: 'price_123',
+        displayName: 'Pro Monthly',
+        interval: 'month',
+        amountCents: 999,
+        currency: 'usd',
+        active: true,
+      });
       const userId = makeUser(handle, 'u4@example.com');
+      const sub = createOrUpdateSubscription(handle.db, {
+        userId,
+        planId: plan.id,
+      });
+
+      expect(sub.planId).toBe(plan.id);
+      expect(getSubscriptionByUserId(handle.db, userId)?.planId).toBe(plan.id);
+    });
+
+    it('updates planId on upsert', () => {
+      const firstPlan = upsertPlan(handle.db, {
+        stripePriceId: 'price_first',
+        displayName: 'First Plan',
+        interval: 'month',
+        amountCents: 499,
+        currency: 'usd',
+        active: true,
+      });
+      const secondPlan = upsertPlan(handle.db, {
+        stripePriceId: 'price_second',
+        displayName: 'Second Plan',
+        interval: 'year',
+        amountCents: 4999,
+        currency: 'usd',
+        active: true,
+      });
+
+      const userId = makeUser(handle, 'u5@example.com');
+      createOrUpdateSubscription(handle.db, { userId, planId: firstPlan.id });
+      const updated = createOrUpdateSubscription(handle.db, {
+        userId,
+        planId: secondPlan.id,
+      });
+
+      expect(updated.planId).toBe(secondPlan.id);
+      expect(getSubscriptionByUserId(handle.db, userId)?.planId).toBe(secondPlan.id);
+    });
+
+    it('clears planId when upserted with null', () => {
+      const plan = upsertPlan(handle.db, {
+        stripePriceId: 'price_clear',
+        displayName: 'Clearable Plan',
+        interval: 'month',
+        amountCents: 299,
+        currency: 'usd',
+        active: true,
+      });
+
+      const userId = makeUser(handle, 'u6@example.com');
+      createOrUpdateSubscription(handle.db, { userId, planId: plan.id });
+      const updated = createOrUpdateSubscription(handle.db, {
+        userId,
+        planId: null,
+      });
+
+      expect(updated.planId).toBeNull();
+      expect(getSubscriptionByUserId(handle.db, userId)?.planId).toBeNull();
+    });
+
+    it('enforces one subscription per user via the unique constraint', () => {
+      const userId = makeUser(handle, 'u7@example.com');
       createOrUpdateSubscription(handle.db, { userId });
       // A second direct insert with the same userId must violate the unique index.
-      expect(() =>
-        handle.db.insert(subscriptions).values({ userId }).run(),
-      ).toThrow();
+      expect(() => handle.db.insert(subscriptions).values({ userId }).run()).toThrow();
     });
   });
 

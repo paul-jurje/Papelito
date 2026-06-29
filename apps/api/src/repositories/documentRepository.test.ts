@@ -8,10 +8,7 @@ import {
   getDocumentsByUserId,
   updateDocument,
 } from './documentRepository.js';
-import {
-  DEFAULT_DOCUMENT_TITLE,
-  EMPTY_PROSEMIRROR_DOC,
-} from '../types/index.js';
+import { DEFAULT_DOCUMENT_TITLE, EMPTY_PROSEMIRROR_DOC } from '../types/index.js';
 
 function makeUser(handle: TestDbHandle, email: string): number {
   return createUser(handle.db, { email, passwordHash: 'hash' }).id;
@@ -21,6 +18,8 @@ const SAMPLE_DOC = JSON.stringify({
   type: 'doc',
   content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hi' }] }],
 });
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 describe('documentRepository', () => {
   let handle: TestDbHandle;
@@ -41,6 +40,8 @@ describe('documentRepository', () => {
       expect(doc.title).toBe(DEFAULT_DOCUMENT_TITLE);
       expect(doc.content).toBe(EMPTY_PROSEMIRROR_DOC);
       expect(doc.content).toBe('{"type":"doc","content":[]}');
+      expect(doc.id).toBeTypeOf('string');
+      expect(doc.id).toMatch(UUID_RE);
       JSON.parse(doc.content); // throws if invalid JSON
     });
 
@@ -53,11 +54,13 @@ describe('documentRepository', () => {
       });
       expect(doc.title).toBe('My Doc');
       expect(doc.content).toBe(SAMPLE_DOC);
+      expect(doc.id).toBeTypeOf('string');
+      expect(doc.id).toMatch(UUID_RE);
     });
   });
 
   describe('getDocumentsByUserId', () => {
-    it('returns only the requesting user\'s documents, newest updated first', async () => {
+    it("returns only the requesting user's documents, newest updated first", async () => {
       const a = makeUser(handle, 'a@example.com');
       const b = makeUser(handle, 'b@example.com');
       const older = createDocument(handle.db, {
@@ -115,7 +118,9 @@ describe('documentRepository', () => {
 
     it('returns undefined when the id does not exist', () => {
       const a = makeUser(handle, 'a@example.com');
-      expect(getDocumentByIdAndUserId(handle.db, 99999, a)).toBeUndefined();
+      expect(
+        getDocumentByIdAndUserId(handle.db, '00000000-0000-0000-0000-000000000000', a),
+      ).toBeUndefined();
     });
   });
 
@@ -148,13 +153,9 @@ describe('documentRepository', () => {
       const a = makeUser(handle, 'a@example.com');
       const b = makeUser(handle, 'b@example.com');
       const doc = createDocument(handle.db, { userId: a });
-      expect(
-        updateDocument(handle.db, doc.id, b, { title: 'Hacked' }),
-      ).toBeUndefined();
+      expect(updateDocument(handle.db, doc.id, b, { title: 'Hacked' })).toBeUndefined();
       // Confirm no change.
-      expect(getDocumentByIdAndUserId(handle.db, doc.id, a)?.title).toBe(
-        doc.title,
-      );
+      expect(getDocumentByIdAndUserId(handle.db, doc.id, a)?.title).toBe(doc.title);
     });
   });
 

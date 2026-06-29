@@ -36,6 +36,8 @@ apps/web/.vite/
 # SQLite dev DBs (used in later chunks)
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite-journal
 

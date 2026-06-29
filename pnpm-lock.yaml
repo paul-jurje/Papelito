@@ -11,12 +11,18 @@ importers:
       concurrently:
         specifier: ^9.1.0
         version: 9.2.3
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.4(jiti@1.21.7)
       prettier:
         specifier: ^3.3.3
         version: 3.9.1
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
+      vitest:
+        specifier: ^2.1.5
+        version: 2.1.9(@types/node@22.20.0)(jsdom@29.1.1(@noble/hashes@1.8.0))
 
   apps/api:
     dependencies:

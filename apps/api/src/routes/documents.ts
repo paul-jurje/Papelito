@@ -10,11 +10,7 @@ import {
   updateDocument,
 } from '../services/documentService.js';
 import type { Document } from '../types/index.js';
-import type {
-  CreateDocumentRequest,
-  DocumentResponse,
-  UpdateDocumentRequest,
-} from '../types/document.js';
+import type { CreateDocumentRequest, DocumentResponse } from '../types/document.js';
 
 export const documentsRouter = Router();
 
@@ -31,12 +27,14 @@ function toDocumentResponse(doc: Document): DocumentResponse {
   };
 }
 
-function parseDocumentId(req: Request): number | null {
+function parseDocumentId(req: Request): string | null {
   const raw = req.params.id;
-  if (typeof raw !== 'string' || !/^\d+$/.test(raw)) return null;
-  const n = Number(raw);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  return n;
+  if (typeof raw !== 'string') return null;
+  // Loose UUID validation: 8-4-4-4-12 hex digits.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)) {
+    return null;
+  }
+  return raw;
 }
 
 interface ValidationResult {
@@ -85,7 +83,7 @@ function validateWriteBody(body: unknown): ValidationResult {
       return { ok: false, message: "content must be a ProseMirror doc (top-level type 'doc')" };
     }
     if (obj.content !== undefined && !Array.isArray(obj.content)) {
-      return { ok: false, message: "content.content must be an array when present" };
+      return { ok: false, message: 'content.content must be an array when present' };
     }
     try {
       data.content = JSON.stringify(obj);
@@ -177,10 +175,7 @@ documentsRouter.patch('/:id', (req: Request, res: Response, next: NextFunction) 
       res.status(400).json({ message: validation.message ?? 'Invalid request body' });
       return;
     }
-    if (
-      validation.data.title === undefined &&
-      validation.data.content === undefined
-    ) {
+    if (validation.data.title === undefined && validation.data.content === undefined) {
       res.status(400).json({ message: 'At least one of title or content must be provided' });
       return;
     }

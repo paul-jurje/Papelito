@@ -1,11 +1,4 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthContext, type AuthContextValue } from '../context/AuthContext';
@@ -19,9 +12,7 @@ interface AuthStubOverrides {
   refresh?: AuthContextValue['refresh'];
 }
 
-function makeAuthContextValue(
-  overrides: AuthStubOverrides = {},
-): AuthContextValue {
+function makeAuthContextValue(overrides: AuthStubOverrides = {}): AuthContextValue {
   const refresh =
     overrides.refresh ??
     (vi.fn(async () => {
@@ -92,14 +83,9 @@ describe('CheckoutReturnPage', () => {
 
     renderPage(auth, '/checkout-return?success=false');
 
-    expect(
-      await screen.findByTestId('checkout-cancelled'),
-    ).toBeInTheDocument();
+    expect(await screen.findByTestId('checkout-cancelled')).toBeInTheDocument();
     expect(screen.getByText(/checkout cancelled/i)).toBeInTheDocument();
-    expect(screen.getByTestId('checkout-back-to-pricing')).toHaveAttribute(
-      'href',
-      '/#pricing',
-    );
+    expect(screen.getByTestId('checkout-back-to-pricing')).toHaveAttribute('href', '/#pricing');
     // No refresh should be triggered on the cancel path.
     expect(refresh).not.toHaveBeenCalled();
   });
@@ -113,9 +99,7 @@ describe('CheckoutReturnPage', () => {
 
     renderPage(auth, '/checkout-return');
 
-    expect(
-      await screen.findByTestId('checkout-cancelled'),
-    ).toBeInTheDocument();
+    expect(await screen.findByTestId('checkout-cancelled')).toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();
   });
 

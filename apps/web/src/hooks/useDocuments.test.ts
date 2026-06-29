@@ -30,11 +30,13 @@ interface Route {
   capture?: FetchCall;
 }
 
+const DOC_ID_1 = '550e8400-e29b-41d4-a716-446655440001';
+const DOC_ID_2 = '550e8400-e29b-41d4-a716-446655440002';
+const DOC_ID_99 = '550e8400-e29b-41d4-a716-446655440099';
+
 const routes: Route[] = [];
 
-function route(
-  match: (url: string, init?: RequestInit) => boolean,
-): Route {
+function route(match: (url: string, init?: RequestInit) => boolean): Route {
   const r: Route = { match, status: 200, body: {} };
   routes.push(r);
   return r;
@@ -72,14 +74,14 @@ afterEach(() => {
 const sampleList = {
   documents: [
     {
-      id: 1,
+      id: DOC_ID_1,
       title: 'First draft',
       content: '{"type":"doc","content":[]}',
       updatedAt: '2024-01-02T00:00:00.000Z',
       createdAt: '2024-01-01T00:00:00.000Z',
     },
     {
-      id: 2,
+      id: DOC_ID_2,
       title: 'Second draft',
       content: '{"type":"doc","content":[{"type":"paragraph"}]}',
       updatedAt: '2024-01-03T00:00:00.000Z',
@@ -90,7 +92,7 @@ const sampleList = {
 
 const newDocResponse = {
   document: {
-    id: 99,
+    id: DOC_ID_99,
     title: 'Untitled document',
     content: '{"type":"doc","content":[]}',
     updatedAt: '2024-02-01T00:00:00.000Z',
@@ -100,7 +102,7 @@ const newDocResponse = {
 
 const renameDocResponse = {
   document: {
-    id: 1,
+    id: DOC_ID_1,
     title: 'Renamed draft',
     content: '{"type":"doc","content":[]}',
     updatedAt: '2024-02-02T00:00:00.000Z',
@@ -110,8 +112,8 @@ const renameDocResponse = {
 
 describe('useDocuments', () => {
   it('loads the document list on mount', async () => {
-    route((url, init) => url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'GET')
-      .body = sampleList;
+    route((url, init) => url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'GET').body =
+      sampleList;
 
     const { result } = renderHook(() => useDocuments());
 
@@ -122,13 +124,14 @@ describe('useDocuments', () => {
     });
 
     expect(result.current.documents).toHaveLength(2);
-    expect(result.current.documents[0]?.id).toBe(1);
+    expect(result.current.documents[0]?.id).toBe(DOC_ID_1);
     expect(result.current.error).toBeNull();
   });
 
   it('surfaces a server error message when the list fails to load', async () => {
-    route((url, init) => url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'GET')
-      .status = 500;
+    route(
+      (url, init) => url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'GET',
+    ).status = 500;
     (routes[routes.length - 1] as Route).body = { message: 'boom' };
 
     const { result } = renderHook(() => useDocuments());
@@ -142,12 +145,11 @@ describe('useDocuments', () => {
   });
 
   it('creates a document, adds it to the list, and selects it', async () => {
-    route((url, init) => url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'GET')
-      .body = sampleList;
+    route((url, init) => url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'GET').body =
+      sampleList;
     const createCapture: Route['capture'] = { url: '', init: {} };
     route(
-      (url, init) =>
-        url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'POST',
+      (url, init) => url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'POST',
     ).body = newDocResponse;
     (routes[routes.length - 1] as Route).capture = createCapture;
 
@@ -162,13 +164,13 @@ describe('useDocuments', () => {
       created = await result.current.createDocument();
     });
 
-    expect(created?.id).toBe(99);
+    expect(created?.id).toBe(DOC_ID_99);
     expect(result.current.documents).toHaveLength(3);
-    expect(result.current.documents.find((d) => d.id === 99)?.title).toBe(
+    expect(result.current.documents.find((d) => d.id === DOC_ID_99)?.title).toBe(
       'Untitled document',
     );
-    expect(result.current.selectedId).toBe(99);
-    expect(result.current.selectedDocument?.id).toBe(99);
+    expect(result.current.selectedId).toBe(DOC_ID_99);
+    expect(result.current.selectedDocument?.id).toBe(DOC_ID_99);
 
     expect(createCapture?.url).toBe('/api/documents');
     expect(createCapture?.init.method).toBe('POST');
@@ -177,12 +179,12 @@ describe('useDocuments', () => {
   });
 
   it('renames a document and updates the list', async () => {
-    route((url, init) => url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'GET')
-      .body = sampleList;
+    route((url, init) => url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'GET').body =
+      sampleList;
     const renameCapture: Route['capture'] = { url: '', init: {} };
     const renameRoute = route(
       (url, init) =>
-        url.endsWith('/api/documents/1') && (init?.method ?? 'GET') === 'PATCH',
+        url.endsWith(`/api/documents/${DOC_ID_1}`) && (init?.method ?? 'GET') === 'PATCH',
     );
     renameRoute.body = renameDocResponse;
     renameRoute.capture = renameCapture;
@@ -195,28 +197,26 @@ describe('useDocuments', () => {
 
     let renamed: Awaited<ReturnType<typeof result.current.renameDocument>> | undefined;
     await act(async () => {
-      renamed = await result.current.renameDocument(1, 'Renamed draft');
+      renamed = await result.current.renameDocument(DOC_ID_1, 'Renamed draft');
     });
 
     expect(renamed?.title).toBe('Renamed draft');
-    const updated = result.current.documents.find((d) => d.id === 1);
+    const updated = result.current.documents.find((d) => d.id === DOC_ID_1);
     expect(updated?.title).toBe('Renamed draft');
     expect(updated?.updatedAt).toBe('2024-02-02T00:00:00.000Z');
 
-    expect(renameCapture?.url).toBe('/api/documents/1');
+    expect(renameCapture?.url).toBe(`/api/documents/${DOC_ID_1}`);
     expect(renameCapture?.init.method).toBe('PATCH');
-    expect(renameCapture?.init.body).toBe(
-      JSON.stringify({ title: 'Renamed draft' }),
-    );
+    expect(renameCapture?.init.body).toBe(JSON.stringify({ title: 'Renamed draft' }));
   });
 
   it('deletes a document and removes it from the list', async () => {
-    route((url, init) => url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'GET')
-      .body = sampleList;
+    route((url, init) => url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'GET').body =
+      sampleList;
     const deleteCapture: Route['capture'] = { url: '', init: {} };
     const deleteRoute = route(
       (url, init) =>
-        url.endsWith('/api/documents/2') && (init?.method ?? 'GET') === 'DELETE',
+        url.endsWith(`/api/documents/${DOC_ID_2}`) && (init?.method ?? 'GET') === 'DELETE',
     );
     deleteRoute.status = 204;
     deleteRoute.empty = true;
@@ -230,27 +230,27 @@ describe('useDocuments', () => {
 
     let ok: boolean;
     await act(async () => {
-      ok = await result.current.deleteDocument(2);
+      ok = await result.current.deleteDocument(DOC_ID_2);
     });
 
     expect(ok!).toBe(true);
-    expect(result.current.documents.map((d) => d.id)).toEqual([1]);
+    expect(result.current.documents.map((d) => d.id)).toEqual([DOC_ID_1]);
 
-    expect(deleteCapture?.url).toBe('/api/documents/2');
+    expect(deleteCapture?.url).toBe(`/api/documents/${DOC_ID_2}`);
     expect(deleteCapture?.init.method).toBe('DELETE');
   });
 
   it('saves document content via PATCH', async () => {
-    route((url, init) => url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'GET')
-      .body = sampleList;
+    route((url, init) => url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'GET').body =
+      sampleList;
     const saveCapture: Route['capture'] = { url: '', init: {} };
     const saveRoute = route(
       (url, init) =>
-        url.endsWith('/api/documents/1') && (init?.method ?? 'GET') === 'PATCH',
+        url.endsWith(`/api/documents/${DOC_ID_1}`) && (init?.method ?? 'GET') === 'PATCH',
     );
     saveRoute.body = {
       document: {
-        id: 1,
+        id: DOC_ID_1,
         title: 'First draft',
         content:
           '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"hi"}]}]}',
@@ -268,7 +268,7 @@ describe('useDocuments', () => {
 
     let saved: Awaited<ReturnType<typeof result.current.saveDocument>> | undefined;
     await act(async () => {
-      saved = await result.current.saveDocument(1, {
+      saved = await result.current.saveDocument(DOC_ID_1, {
         type: 'doc',
         content: [
           {
@@ -289,7 +289,7 @@ describe('useDocuments', () => {
       ],
     });
 
-    expect(saveCapture?.url).toBe('/api/documents/1');
+    expect(saveCapture?.url).toBe(`/api/documents/${DOC_ID_1}`);
     expect(saveCapture?.init.method).toBe('PATCH');
     const parsedBody = JSON.parse(String(saveCapture?.init.body ?? '{}'));
     expect(parsedBody.content).toEqual({
@@ -304,16 +304,16 @@ describe('useDocuments', () => {
   });
 
   it('loads a single document by id', async () => {
-    route((url, init) => url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'GET')
-      .body = sampleList;
+    route((url, init) => url.endsWith('/api/documents') && (init?.method ?? 'GET') === 'GET').body =
+      sampleList;
     route((url, init) => {
-      if (url.endsWith('/api/documents/2') && (init?.method ?? 'GET') === 'GET') {
+      if (url.endsWith(`/api/documents/${DOC_ID_2}`) && (init?.method ?? 'GET') === 'GET') {
         return true;
       }
       return false;
     }).body = {
       document: {
-        id: 2,
+        id: DOC_ID_2,
         title: 'Second draft',
         content: '{"type":"doc","content":[{"type":"paragraph"}]}',
         updatedAt: '2024-01-03T00:00:00.000Z',
@@ -329,10 +329,10 @@ describe('useDocuments', () => {
 
     let detail: Awaited<ReturnType<typeof result.current.loadDocument>> | undefined;
     await act(async () => {
-      detail = await result.current.loadDocument(2);
+      detail = await result.current.loadDocument(DOC_ID_2);
     });
 
-    expect(detail?.id).toBe(2);
+    expect(detail?.id).toBe(DOC_ID_2);
     expect(detail?.content).toEqual({
       type: 'doc',
       content: [{ type: 'paragraph' }],

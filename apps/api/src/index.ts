@@ -8,11 +8,14 @@ import './types/express.js';
 import { authRouter } from './routes/auth.js';
 import { billingRouter } from './routes/billing.js';
 import { documentsRouter } from './routes/documents.js';
+import { syncPlansFromStripe } from './services/planSyncService.js';
 
 // `connect-sqlite3`'s bundled types declare `createSession` as returning `void`
 // but `express-session` expects a `Store` whose `createSession` returns `Session & SessionData`.
 // At runtime the implementation is compatible; this cast bridges the gap.
-const SQLiteStore = connectSqlite3(session) as unknown as new (options?: Record<string, unknown>) => Store;
+const SQLiteStore = connectSqlite3(session) as unknown as new (
+  options?: Record<string, unknown>,
+) => Store;
 
 export function buildApp(): Application {
   const app: Application = express();
@@ -34,10 +37,7 @@ export function buildApp(): Application {
   // signature. Register the raw parser for that exact path BEFORE the global
   // JSON parser — once `express.json()` runs, `req.body` is parsed and the
   // signature check will fail.
-  app.use(
-    '/api/billing/webhook',
-    express.raw({ type: 'application/json' }),
-  );
+  app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
 
   app.use(express.json());
 
@@ -80,9 +80,18 @@ export const app: Application = buildApp();
 
 const PORT = Number(process.env.PORT) || 3000;
 
-if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    // eslint-disable-next-line no-console
-    console.log(`api listening on http://localhost:${PORT}`);
-  });
+async function startServer(): Promise<void> {
+  if (process.env.NODE_ENV !== 'test') {
+    try {
+      await syncPlansFromStripe();
+    } catch (error) {
+      console.error('Failed to sync plans from Stripe; continuing startup:', error);
+    }
+
+    app.listen(PORT, () => {
+      console.log(`api listening on http://localhost:${PORT}`);
+    });
+  }
 }
+
+startServer();

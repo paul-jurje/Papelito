@@ -8,6 +8,7 @@ import {
   createOrUpdateSubscription,
   getSubscriptionByUserId,
 } from '../repositories/subscriptionRepository.js';
+import { upsertPlan } from '../repositories/planRepository.js';
 
 // `vi.hoisted` runs BEFORE any module-level imports so we can set env vars
 // before `../lib/stripe.js` is evaluated (it throws if STRIPE_SECRET_KEY is
@@ -18,7 +19,6 @@ import {
 const { stripeMock } = vi.hoisted(() => {
   process.env.STRIPE_SECRET_KEY = 'sk_test_mock';
   process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_mock';
-  process.env.STRIPE_PRICE_ID = 'price_test_mock';
   const stripeMock = {
     customers: {
       list: vi.fn(),
@@ -51,12 +51,82 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+function seedPlan(stripePriceId: string) {
+  return upsertPlan(db, {
+    stripePriceId,
+    displayName: 'Test Plan',
+    interval: 'month',
+    amountCents: 599,
+    currency: 'eur',
+    active: true,
+  });
+}
+
 function signPayload(payload: string, secret: string, timestamp?: number): string {
   const ts = timestamp ?? Math.floor(Date.now() / 1000);
   const signedPayload = `${ts}.${payload}`;
   const sig = createHmac('sha256', secret).update(signedPayload).digest('hex');
   return `t=${ts},v1=${sig}`;
 }
+
+describe('GET /api/billing/plans', () => {
+  let handle: TestDbHandle;
+
+  beforeEach(() => {
+    handle = createTestDb();
+  });
+
+  afterEach(() => {
+    handle.sqlite.close();
+  });
+
+  it('returns active plans sorted by price', async () => {
+    const monthly = upsertPlan(db, {
+      stripePriceId: 'price_monthly',
+      displayName: 'Monthly',
+      interval: 'month',
+      amountCents: 599,
+      currency: 'eur',
+      active: true,
+    });
+    upsertPlan(db, {
+      stripePriceId: 'price_yearly',
+      displayName: 'Yearly',
+      interval: 'year',
+      amountCents: 5499,
+      currency: 'eur',
+      active: true,
+    });
+    upsertPlan(db, {
+      stripePriceId: 'price_inactive',
+      displayName: 'Inactive',
+      interval: 'month',
+      amountCents: 100,
+      currency: 'eur',
+      active: false,
+    });
+
+    const res = await request(app).get('/api/billing/plans');
+    expect(res.status).toBe(200);
+    expect(res.body.plans).toHaveLength(2);
+    expect(res.body.plans.map((p: { id: number }) => p.id)).toEqual([
+      monthly.id,
+      expect.any(Number),
+    ]);
+    expect(res.body.plans[0]).toMatchObject({
+      displayName: 'Monthly',
+      interval: 'month',
+      amountCents: 599,
+      currency: 'eur',
+    });
+    expect(res.body.plans[1]).toMatchObject({
+      displayName: 'Yearly',
+      interval: 'year',
+      amountCents: 5499,
+      currency: 'eur',
+    });
+  });
+});
 
 describe('POST /api/billing/checkout-session', () => {
   let handle: TestDbHandle;
@@ -75,6 +145,26 @@ describe('POST /api/billing/checkout-session', () => {
   it('returns 401 when not authenticated', async () => {
     const res = await request(app).post('/api/billing/checkout-session');
     expect(res.status).toBe(401);
+  });
+
+  it('returns 400 when planId is missing', async () => {
+    const a = agent();
+    await a.post('/api/auth/register').send({
+      email: 'noplan@example.com',
+      password: 'password123',
+    });
+    const res = await a.post('/api/billing/checkout-session').send({});
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when the plan is invalid or inactive', async () => {
+    const a = agent();
+    await a.post('/api/auth/register').send({
+      email: 'badplan@example.com',
+      password: 'password123',
+    });
+    const res = await a.post('/api/billing/checkout-session').send({ planId: '99999' });
+    expect(res.status).toBe(400);
   });
 
   it('reuses an existing Stripe Customer id and returns { url, sessionId }', async () => {
@@ -96,13 +186,15 @@ describe('POST /api/billing/checkout-session', () => {
       status: 'inactive',
     });
 
+    const plan = seedPlan('price_existing');
+
     stripeMock.checkout.sessions.create.mockResolvedValue({
       id: 'cs_test_123',
       url: 'https://stripe.test/cs_test_123',
     });
 
     // Reuse the same agent so the session cookie set by /register is sent.
-    const res = await a.post('/api/billing/checkout-session');
+    const res = await a.post('/api/billing/checkout-session').send({ planId: String(plan.id) });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       url: 'https://stripe.test/cs_test_123',
@@ -116,7 +208,7 @@ describe('POST /api/billing/checkout-session', () => {
     expect(args.mode).toBe('subscription');
     expect(args.customer).toBe('cus_existing');
     expect(args.client_reference_id).toBe(String(userId));
-    expect(args.line_items).toEqual([{ price: 'price_test_mock', quantity: 1 }]);
+    expect(args.line_items).toEqual([{ price: plan.stripePriceId, quantity: 1 }]);
     expect(args.success_url).toContain('checkout-return');
     expect(args.cancel_url).toContain('checkout-return');
   });
@@ -127,6 +219,7 @@ describe('POST /api/billing/checkout-session', () => {
       email: 'returning@example.com',
       password: 'password123',
     });
+    const plan = seedPlan('price_returning');
 
     stripeMock.customers.list.mockResolvedValue({
       data: [{ id: 'cus_from_list' }],
@@ -136,16 +229,14 @@ describe('POST /api/billing/checkout-session', () => {
       url: 'https://stripe.test/cs_test_456',
     });
 
-    const res = await a.post('/api/billing/checkout-session');
+    const res = await a.post('/api/billing/checkout-session').send({ planId: String(plan.id) });
     expect(res.status).toBe(200);
     expect(stripeMock.customers.list).toHaveBeenCalledWith({
       email: 'returning@example.com',
       limit: 1,
     });
     expect(stripeMock.customers.create).not.toHaveBeenCalled();
-    expect(stripeMock.checkout.sessions.create.mock.calls[0]![0].customer).toBe(
-      'cus_from_list',
-    );
+    expect(stripeMock.checkout.sessions.create.mock.calls[0]![0].customer).toBe('cus_from_list');
   });
 
   it('creates a new customer when none exists in Stripe', async () => {
@@ -155,6 +246,7 @@ describe('POST /api/billing/checkout-session', () => {
       password: 'password123',
     });
     const userId = reg.body.user!.id as number;
+    const plan = seedPlan('price_newbuyer');
 
     stripeMock.customers.list.mockResolvedValue({ data: [] });
     stripeMock.customers.create.mockResolvedValue({ id: 'cus_newly_made' });
@@ -163,7 +255,7 @@ describe('POST /api/billing/checkout-session', () => {
       url: 'https://stripe.test/cs_test_789',
     });
 
-    const res = await a.post('/api/billing/checkout-session');
+    const res = await a.post('/api/billing/checkout-session').send({ planId: String(plan.id) });
     expect(res.status).toBe(200);
     expect(stripeMock.customers.create).toHaveBeenCalledWith({
       email: 'newbuyer@example.com',

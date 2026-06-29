@@ -29,9 +29,7 @@ interface ValidationResult {
 }
 
 function validate(email: string, password: string): ValidationResult {
-  const emailError = EMAIL_REGEX.test(email)
-    ? null
-    : 'Please enter a valid email address.';
+  const emailError = EMAIL_REGEX.test(email) ? null : 'Please enter a valid email address.';
   const passwordError =
     password.length >= MIN_PASSWORD_LENGTH
       ? null

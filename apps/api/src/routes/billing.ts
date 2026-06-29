@@ -1,12 +1,29 @@
 import { Router, type Request, type Response } from 'express';
 import { requireAuth } from '../middleware/requireAuth.js';
+import { db } from '../db/index.js';
 import {
   createCheckoutSession,
   processWebhookEvent,
+  PlanNotFoundError,
+  InactivePlanError,
 } from '../services/billingService.js';
 import { stripe } from '../lib/stripe.js';
+import { getActivePlans } from '../repositories/planRepository.js';
 
 export const billingRouter = Router();
+
+// GET /api/billing/plans
+// Returns the active subscription plans available for checkout. The frontend
+// uses this list to render plan selection instead of relying on a hardcoded
+// price id.
+billingRouter.get('/plans', async (_req, res, next) => {
+  try {
+    const plans = getActivePlans(db);
+    res.json({ plans });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // POST /api/billing/checkout-session
 // Creates a Stripe Checkout Session in subscription mode and returns the URL
@@ -18,9 +35,19 @@ billingRouter.post('/checkout-session', requireAuth, async (req, res, next) => {
       res.status(401).json({ message: 'Unauthorized' });
       return;
     }
-    const result = await createCheckoutSession(req.user.id, req.user.email);
+    const { planId } = req.body;
+    if (!planId || typeof planId !== 'string') {
+      res.status(400).json({ message: 'planId is required' });
+      return;
+    }
+
+    const result = await createCheckoutSession(req.user.id, planId, req.user.email);
     res.json({ url: result.url, sessionId: result.sessionId });
   } catch (err) {
+    if (err instanceof PlanNotFoundError || err instanceof InactivePlanError) {
+      res.status(400).json({ message: err.message });
+      return;
+    }
     next(err);
   }
 });
@@ -43,9 +70,7 @@ billingRouter.post('/webhook', (req: Request, res: Response) => {
   }
   if (!Buffer.isBuffer(req.body)) {
     // This shouldn't happen if the app is wired correctly; fail loudly.
-    res
-      .status(400)
-      .json({ message: 'Webhook requires raw body (check route ordering)' });
+    res.status(400).json({ message: 'Webhook requires raw body (check route ordering)' });
     return;
   }
 
@@ -68,7 +93,6 @@ billingRouter.post('/webhook', (req: Request, res: Response) => {
       // We already verified the signature — log and still return 200 so
       // Stripe doesn't retry indefinitely. In production, route to an
       // alerting sink here.
-      // eslint-disable-next-line no-console
       console.error('Webhook handler failed:', err);
       res.json({ received: true });
     });
