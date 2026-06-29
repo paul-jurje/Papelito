@@ -61,12 +61,12 @@ export function EditorPage(): ReactNode {
   } = useDocuments();
 
   const [isCreating, setIsCreating] = useState(false);
-  const [renameTargetId, setRenameTargetId] = useState<number | null>(null);
+  const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState<string>('');
   const [renameSubmitting, setRenameSubmitting] = useState(false);
   const [renameError, setRenameError] = useState<string | null>(null);
 
-  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -161,7 +161,7 @@ export function EditorPage(): ReactNode {
   }, [isCreating, createDocument]);
 
   const openRename = useCallback(
-    (id: number): void => {
+    (id: string): void => {
       const target = documents.find((d) => d.id === id);
       setRenameTargetId(id);
       setRenameDraft(target?.title ?? '');
@@ -192,7 +192,7 @@ export function EditorPage(): ReactNode {
     [renameTargetId, renameDocument],
   );
 
-  const openDelete = useCallback((id: number): void => {
+  const openDelete = useCallback((id: string): void => {
     setDeleteTargetId(id);
     setDeleteError(null);
   }, []);
@@ -246,10 +246,7 @@ export function EditorPage(): ReactNode {
           onDelete={openDelete}
         />
 
-        <main
-          className="flex-1 overflow-y-auto bg-white"
-          data-testid="editor-main"
-        >
+        <main className="flex-1 overflow-y-auto bg-white" data-testid="editor-main">
           {selectedId === null ? (
             <EmptyWorkspace onCreate={handleCreate} isCreating={isCreating} />
           ) : (
@@ -301,19 +298,23 @@ function Header({ title, saveStatus, userEmail }: HeaderProps): JSX.Element {
           ← Home
         </Link>
         <div className="h-4 w-px bg-slate-200" />
-        <h1
-          className="truncate text-sm font-bold text-slate-800"
-          data-testid="document-title"
-        >
+        <h1 className="truncate text-sm font-bold text-slate-800" data-testid="document-title">
           {title}
         </h1>
         <div className="flex items-center gap-1.5 ml-2">
-          <span className={`h-1.5 w-1.5 rounded-full ${
-            saveStatus === 'saving' ? 'bg-indigo-500 animate-pulse' :
-            saveStatus === 'saved' ? 'bg-emerald-500' :
-            saveStatus === 'error' ? 'bg-rose-500' :
-            saveStatus === 'unsaved' ? 'bg-amber-500' : 'bg-transparent'
-          }`} />
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${
+              saveStatus === 'saving'
+                ? 'bg-indigo-500 animate-pulse'
+                : saveStatus === 'saved'
+                  ? 'bg-emerald-500'
+                  : saveStatus === 'error'
+                    ? 'bg-rose-500'
+                    : saveStatus === 'unsaved'
+                      ? 'bg-amber-500'
+                      : 'bg-transparent'
+            }`}
+          />
           <span
             aria-live="polite"
             data-testid="save-status"
@@ -360,7 +361,8 @@ function EmptyWorkspace({ onCreate, isCreating }: EmptyWorkspaceProps): JSX.Elem
       </div>
       <h2 className="text-base font-bold text-slate-800">No document selected</h2>
       <p className="mt-2 max-w-xs text-xs text-slate-400 font-medium leading-relaxed">
-        Choose an existing document from the left workspace sidebar or create a fresh draft to begin writing.
+        Choose an existing document from the left workspace sidebar or create a fresh draft to begin
+        writing.
       </p>
       <button
         type="button"
@@ -418,16 +420,19 @@ function UpsellScreen({ userEmail }: UpsellScreenProps): JSX.Element {
               strokeWidth="2.5"
               className="h-5 w-5"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
             </svg>
           </div>
           <h1 className="text-xl font-extrabold text-slate-900 tracking-tight sm:text-2xl">
             Subscribe to start writing
           </h1>
           <p className="mt-3.5 text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
-            Papelito&apos;s editor is available to active subscribers. Subscribe
-            to create, edit, and organize your documents. It takes about a
-            minute.
+            Papelito&apos;s editor is available to active subscribers. Subscribe to create, edit,
+            and organize your documents. It takes about a minute.
           </p>
           <div className="mt-8 flex flex-col items-center gap-4">
             <SubscribeButton

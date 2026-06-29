@@ -11,11 +11,7 @@ import { isActiveSubscriptionStatus } from '../types/subscription.js';
  * satisfied — `requireAuth` is composed in so callers only need to register
  * this middleware.
  */
-export function requireSubscription(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void {
+export function requireSubscription(req: Request, res: Response, next: NextFunction): void {
   requireAuth(req, res, (err) => {
     if (err) return next(err);
     if (!req.user) {

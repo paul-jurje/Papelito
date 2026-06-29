@@ -51,9 +51,7 @@ describe('requireSubscription middleware', () => {
 
   it('returns 401 when no user is attached to the request', async () => {
     const app = buildApp();
-    const res = await request(app)
-      .get('/protected')
-      .set('x-test-anonymous', '1');
+    const res = await request(app).get('/protected').set('x-test-anonymous', '1');
     expect(res.status).toBe(401);
   });
 

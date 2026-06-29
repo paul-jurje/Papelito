@@ -24,7 +24,9 @@ interface FetchRoute {
 
 const routes: FetchRoute[] = [];
 
-function when(match: (url: string, init?: RequestInit) => boolean): { respond: (status: number, body: unknown) => void } {
+function when(match: (url: string, init?: RequestInit) => boolean): {
+  respond: (status: number, body: unknown) => void;
+} {
   const route: FetchRoute = { match, status: 200, body: {} };
   routes.push(route);
   return {
@@ -181,7 +183,9 @@ describe('RegisterPage', () => {
 
   it('registers the user and navigates to /editor by default', async () => {
     mockMeAsUnauthenticated();
-    when((url, init) => url.endsWith('/api/auth/register') && (init?.method ?? 'GET') === 'POST').respond(201, {
+    when(
+      (url, init) => url.endsWith('/api/auth/register') && (init?.method ?? 'GET') === 'POST',
+    ).respond(201, {
       user: sampleUser,
     });
 
@@ -199,7 +203,9 @@ describe('RegisterPage', () => {
 
   it('honors ?next=/editor and navigates there after registration', async () => {
     mockMeAsUnauthenticated();
-    when((url, init) => url.endsWith('/api/auth/register') && (init?.method ?? 'GET') === 'POST').respond(201, {
+    when(
+      (url, init) => url.endsWith('/api/auth/register') && (init?.method ?? 'GET') === 'POST',
+    ).respond(201, {
       user: sampleUser,
     });
 
@@ -217,7 +223,9 @@ describe('RegisterPage', () => {
 
   it('displays the server error message when registration fails (e.g., duplicate email)', async () => {
     mockMeAsUnauthenticated();
-    when((url, init) => url.endsWith('/api/auth/register') && (init?.method ?? 'GET') === 'POST').respond(409, {
+    when(
+      (url, init) => url.endsWith('/api/auth/register') && (init?.method ?? 'GET') === 'POST',
+    ).respond(409, {
       message: 'Email already registered',
     });
 
@@ -258,9 +266,11 @@ describe('RegisterPage', () => {
     });
 
     expect(capturedInit?.credentials).toBe('include');
-    expect(capturedInit?.body).toBe(JSON.stringify({
-      email: 'new@example.com',
-      password: 'password123',
-    }));
+    expect(capturedInit?.body).toBe(
+      JSON.stringify({
+        email: 'new@example.com',
+        password: 'password123',
+      }),
+    );
   });
 });

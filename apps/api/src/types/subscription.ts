@@ -36,17 +36,12 @@ export interface CheckoutSessionCompletedData {
 }
 
 /**
- * Shape we care about from a `customer.subscription.{updated,deleted}` event.
+ * Shape we care about from a `customer.subscription.{created,updated,deleted}` event.
  */
-export interface StripeSubscriptionData {
-  id: string;
-  customer: string | null;
-  status: string;
-  // Unix timestamp (seconds). Stripe's `current_period_end` is always present
-  // on active subscriptions.
-  current_period_end: number;
-  cancel_at_period_end?: boolean;
-}
+export type StripeSubscriptionData = Pick<
+  Stripe.Subscription,
+  'id' | 'customer' | 'status' | 'items' | 'metadata'
+>;
 
 // Narrowing helpers — Stripe's event type is a discriminated union and we
 // only care about a small set of event names.
@@ -56,12 +51,14 @@ export function isCheckoutSessionCompleted(
   return event.type === 'checkout.session.completed';
 }
 
-export function isCustomerSubscriptionUpdated(
-  event: Stripe.Event,
-): event is Stripe.Event & {
-  type: 'customer.subscription.updated' | 'customer.subscription.deleted';
+export function isCustomerSubscriptionUpdated(event: Stripe.Event): event is Stripe.Event & {
+  type:
+    | 'customer.subscription.created'
+    | 'customer.subscription.updated'
+    | 'customer.subscription.deleted';
 } {
   return (
+    event.type === 'customer.subscription.created' ||
     event.type === 'customer.subscription.updated' ||
     event.type === 'customer.subscription.deleted'
   );

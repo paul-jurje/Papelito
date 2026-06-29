@@ -43,11 +43,7 @@ export function getDocumentsByUserId(db: Db, userId: number): Document[] {
   return rows.map(toDocument);
 }
 
-export function getDocumentByIdAndUserId(
-  db: Db,
-  id: number,
-  userId: number,
-): Document | undefined {
+export function getDocumentByIdAndUserId(db: Db, id: string, userId: number): Document | undefined {
   const row = db
     .select()
     .from(documents)
@@ -58,7 +54,7 @@ export function getDocumentByIdAndUserId(
 
 export function updateDocument(
   db: Db,
-  id: number,
+  id: string,
   userId: number,
   input: UpdateDocumentInput,
 ): Document | undefined {
@@ -79,11 +75,7 @@ export function updateDocument(
   return row ? toDocument(row) : undefined;
 }
 
-export function deleteDocument(
-  db: Db,
-  id: number,
-  userId: number,
-): boolean {
+export function deleteDocument(db: Db, id: string, userId: number): boolean {
   const row = db
     .delete(documents)
     .where(and(eq(documents.id, id), eq(documents.userId, userId)))

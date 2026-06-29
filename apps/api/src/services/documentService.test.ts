@@ -10,15 +10,14 @@ import {
   NotFoundError,
 } from './documentService.js';
 import { getDocumentByIdAndUserId } from '../repositories/documentRepository.js';
-import {
-  DEFAULT_DOCUMENT_TITLE,
-  EMPTY_PROSEMIRROR_DOC,
-} from '../types/index.js';
+import { DEFAULT_DOCUMENT_TITLE, EMPTY_PROSEMIRROR_DOC } from '../types/index.js';
 
 const SAMPLE_CONTENT = JSON.stringify({
   type: 'doc',
   content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hi' }] }],
 });
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function makeUser(handle: TestDbHandle, email: string): number {
   return createUser(handle.db, { email, passwordHash: 'hash' }).id;
@@ -43,7 +42,8 @@ describe('documentService', () => {
       expect(doc.title).toBe(DEFAULT_DOCUMENT_TITLE);
       expect(doc.content).toBe(EMPTY_PROSEMIRROR_DOC);
       expect(doc.userId).toBe(userId);
-      expect(doc.id).toBeTypeOf('number');
+      expect(doc.id).toBeTypeOf('string');
+      expect(doc.id).toMatch(UUID_RE);
       expect(doc.createdAt).toBeInstanceOf(Date);
       expect(doc.updatedAt).toBeInstanceOf(Date);
     });
@@ -65,7 +65,7 @@ describe('documentService', () => {
       expect(listDocuments(userId)).toEqual([]);
     });
 
-    it('returns only the requesting user\'s documents, newest updated first', async () => {
+    it("returns only the requesting user's documents, newest updated first", async () => {
       const a = makeUser(handle, 'a@example.com');
       const b = makeUser(handle, 'b@example.com');
       const older = createDocument(a, { title: 'older', content: EMPTY_PROSEMIRROR_DOC });
@@ -104,7 +104,9 @@ describe('documentService', () => {
 
     it('throws NotFoundError when the id does not exist', () => {
       const userId = makeUser(handle, 'noexist@example.com');
-      expect(() => getDocument(userId, 99999)).toThrow(NotFoundError);
+      expect(() => getDocument(userId, '00000000-0000-0000-0000-000000000000')).toThrow(
+        NotFoundError,
+      );
     });
 
     it('throws NotFoundError when the document belongs to another user', () => {
@@ -147,22 +149,20 @@ describe('documentService', () => {
       expect(updated.content).toBe(SAMPLE_CONTENT);
     });
 
-    it('throws NotFoundError for another user\'s document', () => {
+    it("throws NotFoundError for another user's document", () => {
       const a = makeUser(handle, 'a@example.com');
       const b = makeUser(handle, 'b@example.com');
       const doc = createDocument(a);
-      expect(() =>
-        updateDocument(b, doc.id, { title: 'hacked' }),
-      ).toThrow(NotFoundError);
+      expect(() => updateDocument(b, doc.id, { title: 'hacked' })).toThrow(NotFoundError);
       // Verify the original doc was untouched.
       expect(getDocument(a, doc.id).title).toBe(doc.title);
     });
 
     it('throws NotFoundError for a non-existent id', () => {
       const userId = makeUser(handle, 'nope@example.com');
-      expect(() => updateDocument(userId, 99999, { title: 'x' })).toThrow(
-        NotFoundError,
-      );
+      expect(() =>
+        updateDocument(userId, '00000000-0000-0000-0000-000000000000', { title: 'x' }),
+      ).toThrow(NotFoundError);
     });
   });
 
@@ -174,7 +174,7 @@ describe('documentService', () => {
       expect(getDocumentByIdAndUserId(handle.db, doc.id, userId)).toBeUndefined();
     });
 
-    it('throws NotFoundError for another user\'s document and leaves it intact', () => {
+    it("throws NotFoundError for another user's document and leaves it intact", () => {
       const a = makeUser(handle, 'a@example.com');
       const b = makeUser(handle, 'b@example.com');
       const doc = createDocument(a);
@@ -184,7 +184,9 @@ describe('documentService', () => {
 
     it('throws NotFoundError for a non-existent id', () => {
       const userId = makeUser(handle, 'phantom@example.com');
-      expect(() => deleteDocument(userId, 99999)).toThrow(NotFoundError);
+      expect(() => deleteDocument(userId, '00000000-0000-0000-0000-000000000000')).toThrow(
+        NotFoundError,
+      );
     });
   });
 });

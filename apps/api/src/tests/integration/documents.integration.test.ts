@@ -21,6 +21,7 @@ import { app } from '../../index.js';
 import { db } from '../../db/index.js';
 import { createTestDb, type TestDbHandle } from '../../test/createTestDb.js';
 import { getSubscriptionByUserId } from '../../repositories/subscriptionRepository.js';
+import { upsertPlan } from '../../repositories/planRepository.js';
 
 // `vi.hoisted` runs BEFORE any module-level imports so we can set env vars
 // before `../../lib/stripe.js` is evaluated (it throws if STRIPE_SECRET_KEY
@@ -31,7 +32,6 @@ import { getSubscriptionByUserId } from '../../repositories/subscriptionReposito
 const { stripeMock } = vi.hoisted(() => {
   process.env.STRIPE_SECRET_KEY = 'sk_test_integration';
   process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_integration';
-  process.env.STRIPE_PRICE_ID = 'price_test_integration';
   return {
     stripeMock: {
       customers: {
@@ -88,6 +88,8 @@ const UPDATED_CONTENT = {
   ],
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Produce a `stripe-signature` header value for a payload using a webhook
  * secret. Mirrors the format Stripe sends in real life: `t=<ts>,v1=<hmac>`.
@@ -129,6 +131,16 @@ async function activateSubscription(
   userId: number,
   email: string,
 ): Promise<void> {
+  // Seed a plan so checkout can resolve a Stripe price id.
+  const plan = upsertPlan(db, {
+    stripePriceId: `price_${userId}`,
+    displayName: 'Integration Plan',
+    interval: 'month',
+    amountCents: 599,
+    currency: 'eur',
+    active: true,
+  });
+
   // 4. Create a Stripe Checkout Session (mocked).
   stripeMock.customers.list.mockResolvedValueOnce({ data: [] });
   stripeMock.customers.create.mockResolvedValueOnce({
@@ -139,7 +151,9 @@ async function activateSubscription(
     url: `https://stripe.test/cs_${userId}`,
   });
 
-  const checkoutRes = await authed.post('/api/billing/checkout-session');
+  const checkoutRes = await authed
+    .post('/api/billing/checkout-session')
+    .send({ planId: String(plan.id) });
   expect(checkoutRes.status).toBe(200);
   expect(checkoutRes.body).toEqual({
     url: `https://stripe.test/cs_${userId}`,
@@ -241,7 +255,8 @@ describe('subscriber-only document flow (integration)', () => {
       userId,
     });
     expect(JSON.parse(created.body.document.content)).toEqual(SAMPLE_CONTENT);
-    const docId = created.body.document.id as number;
+    const docId = created.body.document.id as string;
+    expect(docId).toMatch(UUID_RE);
 
     // Edit / save the document via PATCH.
     const patched = await authed
@@ -323,7 +338,7 @@ describe('subscriber-only document flow (integration)', () => {
     expect(me.body.isSubscriber).toBe(false);
   });
 
-  it('does not leak another user\'s documents even after both are subscribed', async () => {
+  it("does not leak another user's documents even after both are subscribed", async () => {
     // Subscribe user A.
     const a = await registerUser('alice-iso@example.com');
     await activateSubscription(a.authed, a.userId, 'alice-iso@example.com');
@@ -354,18 +369,14 @@ describe('subscriber-only document flow (integration)', () => {
     expect(bPatch.status).toBe(404);
 
     // Bob cannot delete Alice's document.
-    const bDelete = await b.authed.delete(
-      `/api/documents/${aDoc1.body.document.id}`,
-    );
+    const bDelete = await b.authed.delete(`/api/documents/${aDoc1.body.document.id}`);
     expect(bDelete.status).toBe(404);
 
     // Alice's list still contains her two documents, untouched.
     const aList = await a.authed.get('/api/documents');
     expect(aList.status).toBe(200);
     expect(aList.body.documents).toHaveLength(2);
-    const aIds = (aList.body.documents as Array<{ id: number }>).map(
-      (d) => d.id,
-    );
+    const aIds = (aList.body.documents as Array<{ id: string }>).map((d) => d.id);
     expect(aIds).toContain(aDoc1.body.document.id);
     expect(aIds).toContain(aDoc2.body.document.id);
   });

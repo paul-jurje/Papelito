@@ -3,13 +3,13 @@ import type { DocumentSummary } from '../hooks/useDocuments';
 
 export interface DocumentListProps {
   documents: DocumentSummary[];
-  selectedId: number | null;
+  selectedId: string | null;
   isLoading: boolean;
   error: string | null;
-  onSelect: (id: number) => void;
+  onSelect: (id: string) => void;
   onCreate: () => void;
-  onRename: (id: number) => void;
-  onDelete: (id: number) => void;
+  onRename: (id: string) => void;
+  onDelete: (id: string) => void;
   isCreating: boolean;
 }
 
@@ -45,8 +45,7 @@ export function DocumentList({
   const sorted = useMemo(
     () =>
       [...documents].sort(
-        (a, b) =>
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
       ),
     [documents],
   );

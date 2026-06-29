@@ -1,11 +1,4 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -51,10 +44,11 @@ describe('SubscribeButton', () => {
     // jsdom doesn't allow reassigning `window.location`, so we replace it
     // with a stub that exposes the methods we touch.
     delete (window as unknown as { location?: unknown }).location;
-    (window as unknown as { location: { assign: (url: string) => void; href: string } }).location = {
-      assign: vi.fn(),
-      href: '',
-    };
+    (window as unknown as { location: { assign: (url: string) => void; href: string } }).location =
+      {
+        assign: vi.fn(),
+        href: '',
+      };
   });
 
   afterEach(() => {
@@ -98,15 +92,15 @@ describe('SubscribeButton', () => {
     const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
       () =>
         Promise.resolve(
-          new Response(
-            JSON.stringify({ url: 'https://checkout.stripe.com/c/cs_test_abc' }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } },
-          ),
+          new Response(JSON.stringify({ url: 'https://checkout.stripe.com/c/cs_test_abc' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
         ),
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    renderButton(auth);
+    renderButton(auth, { planId: '1' });
 
     const button = screen.getByTestId('subscribe-button');
     expect(button).toHaveAttribute('data-state', 'authenticated');
@@ -121,6 +115,69 @@ describe('SubscribeButton', () => {
     expect(init).toMatchObject({
       method: 'POST',
       credentials: 'include',
+      body: JSON.stringify({ planId: '1' }),
+    });
+
+    expect(window.location.assign).toHaveBeenCalledWith(
+      'https://checkout.stripe.com/c/cs_test_abc',
+    );
+  });
+
+  it('fetches active plans on mount and uses the first active plan if planId is omitted', async () => {
+    const user = userEvent.setup();
+    const auth = makeAuthValue({ isAuthenticated: true });
+
+    const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      (input, init) => {
+        const url = String(input);
+        if (url === '/api/billing/plans') {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                plans: [
+                  {
+                    id: 42,
+                    stripePriceId: 'price_42',
+                    displayName: 'Pro Monthly',
+                    interval: 'month',
+                    amountCents: 599,
+                    currency: 'eur',
+                    active: true,
+                  },
+                ],
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } },
+            ),
+          );
+        }
+        if (url === '/api/billing/checkout-session' && init?.method === 'POST') {
+          return Promise.resolve(
+            new Response(JSON.stringify({ url: 'https://checkout.stripe.com/c/cs_test_abc' }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          );
+        }
+        return Promise.resolve(new Response(null, { status: 404 }));
+      },
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderButton(auth);
+
+    const button = await screen.findByTestId('subscribe-button');
+    expect(button).toHaveAttribute('data-state', 'authenticated');
+
+    await user.click(button);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const calls = fetchMock.mock.calls;
+    expect(calls[0]?.[0]).toBe('/api/billing/plans');
+    expect(calls[1]?.[0]).toBe('/api/billing/checkout-session');
+    expect(calls[1]?.[1]).toMatchObject({
+      method: 'POST',
+      body: JSON.stringify({ planId: '42' }),
     });
 
     expect(window.location.assign).toHaveBeenCalledWith(
@@ -144,7 +201,7 @@ describe('SubscribeButton', () => {
       ),
     );
 
-    renderButton(auth);
+    renderButton(auth, { planId: '1' });
 
     await user.click(screen.getByTestId('subscribe-button'));
 

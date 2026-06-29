@@ -32,7 +32,11 @@ export function FAQSection(): JSX.Element {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="bg-slate-50/50 py-20 sm:py-24 border-t border-slate-100" data-testid="faq-section">
+    <section
+      id="faq"
+      className="bg-slate-50/50 py-20 sm:py-24 border-t border-slate-100"
+      data-testid="faq-section"
+    >
       <div className="mx-auto max-w-3xl px-6">
         <div className="text-center">
           <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">

@@ -1,10 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDb, type TestDbHandle } from '../test/createTestDb.js';
-import {
-  createUser,
-  getUserByEmail,
-  getUserById,
-} from './userRepository.js';
+import { createUser, getUserByEmail, getUserById } from './userRepository.js';
 
 describe('userRepository', () => {
   let handle: TestDbHandle;

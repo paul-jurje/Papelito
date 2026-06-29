@@ -80,11 +80,7 @@ export function Editor({
   }, [editor, editable]);
 
   return (
-    <div
-      className={className}
-      data-testid="editor-wrapper"
-      data-ready={editor ? 'true' : 'false'}
-    >
+    <div className={className} data-testid="editor-wrapper" data-ready={editor ? 'true' : 'false'}>
       {editor && editable && (
         <div
           role="toolbar"
@@ -111,9 +107,7 @@ export function Editor({
             label="H1"
             isActive={editor.isActive('heading', { level: 1 })}
             disabled={!editor.can().toggleHeading({ level: 1 })}
-            onClick={() =>
-              editor.chain().focus().toggleHeading({ level: 1 }).run()
-            }
+            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
             testId="toolbar-heading"
           />
           <div className="h-4 w-px bg-slate-200 self-center mx-1" />

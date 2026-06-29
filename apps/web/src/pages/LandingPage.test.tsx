@@ -63,9 +63,12 @@ describe('LandingPage', () => {
     await renderLandingPage();
 
     const pricing = screen.getByTestId('pricing-section');
-    expect(within(pricing).getByTestId('pricing-amount')).toHaveTextContent('5,99 €');
+    const amounts = within(pricing).getAllByTestId('pricing-amount');
+    expect(amounts[0]).toHaveTextContent('5,99 €');
     expect(within(pricing).getByText('/month')).toBeInTheDocument();
-    expect(within(pricing).getByTestId('subscribe-button')).toHaveTextContent(/subscribe/i);
+
+    const buttons = within(pricing).getAllByTestId('subscribe-button');
+    expect(buttons[0]).toHaveTextContent(/subscribe/i);
   });
 
   it('renders at least three FAQ items', async () => {

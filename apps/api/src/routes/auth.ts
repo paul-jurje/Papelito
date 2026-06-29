@@ -11,10 +11,7 @@ export const authRouter = Router();
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
-function validateCredentials(
-  email: unknown,
-  password: unknown,
-): string | null {
+function validateCredentials(email: unknown, password: unknown): string | null {
   if (typeof email !== 'string' || typeof password !== 'string') {
     return 'Email and password are required';
   }

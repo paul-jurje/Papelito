@@ -9,7 +9,7 @@ import { ApiError, api } from '../lib/api';
  * object so the editor can consume it directly.
  */
 export interface DocumentSummary {
-  id: number;
+  id: string;
   title: string;
   /** ISO 8601 string. */
   updatedAt: string;
@@ -43,7 +43,7 @@ function parseContent(raw: unknown): JSONContent {
 }
 
 function toSummary(doc: {
-  id: number;
+  id: string;
   title: string;
   updatedAt: string;
   createdAt: string;
@@ -58,7 +58,7 @@ function toSummary(doc: {
 
 interface DocumentsListResponse {
   documents: Array<{
-    id: number;
+    id: string;
     title: string;
     content: string;
     updatedAt: string;
@@ -68,7 +68,7 @@ interface DocumentsListResponse {
 
 interface DocumentResponse {
   document: {
-    id: number;
+    id: string;
     title: string;
     content: string;
     updatedAt: string;
@@ -82,14 +82,14 @@ export interface UseDocumentsResult {
   error: string | null;
 
   createDocument: () => Promise<DocumentDetail | null>;
-  renameDocument: (id: number, title: string) => Promise<DocumentDetail | null>;
-  deleteDocument: (id: number) => Promise<boolean>;
-  saveDocument: (id: number, content: JSONContent) => Promise<DocumentDetail | null>;
+  renameDocument: (id: string, title: string) => Promise<DocumentDetail | null>;
+  deleteDocument: (id: string) => Promise<boolean>;
+  saveDocument: (id: string, content: JSONContent) => Promise<DocumentDetail | null>;
 
-  loadDocument: (id: number) => Promise<DocumentDetail | null>;
+  loadDocument: (id: string) => Promise<DocumentDetail | null>;
   selectedDocument: DocumentDetail | null;
-  selectedId: number | null;
-  setSelectedId: (id: number | null) => void;
+  selectedId: string | null;
+  setSelectedId: (id: string | null) => void;
 
   refresh: () => Promise<void>;
 }
@@ -107,10 +107,8 @@ export function useDocuments(): UseDocumentsResult {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [selectedDocument, setSelectedDocument] = useState<DocumentDetail | null>(
-    null,
-  );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentDetail | null>(null);
 
   // Track in-flight requests so concurrent calls don't trample each other.
   const inflightRef = useRef<Set<string>>(new Set());
@@ -123,9 +121,7 @@ export function useDocuments(): UseDocumentsResult {
       setDocuments(data.documents.map(toSummary));
     } catch (err) {
       const message =
-        err instanceof ApiError
-          ? err.message
-          : 'Failed to load documents. Please try again.';
+        err instanceof ApiError ? err.message : 'Failed to load documents. Please try again.';
       setError(message);
     } finally {
       setIsLoading(false);
@@ -157,9 +153,7 @@ export function useDocuments(): UseDocumentsResult {
       return detail;
     } catch (err) {
       const message =
-        err instanceof ApiError
-          ? err.message
-          : 'Failed to create document. Please try again.';
+        err instanceof ApiError ? err.message : 'Failed to create document. Please try again.';
       setError(message);
       return null;
     } finally {
@@ -168,7 +162,7 @@ export function useDocuments(): UseDocumentsResult {
   }, []);
 
   const renameDocument = useCallback(
-    async (id: number, title: string): Promise<DocumentDetail | null> => {
+    async (id: string, title: string): Promise<DocumentDetail | null> => {
       const key = `rename:${id}`;
       if (inflightRef.current.has(key)) return null;
       inflightRef.current.add(key);
@@ -205,10 +199,7 @@ export function useDocuments(): UseDocumentsResult {
           content: parseContent(data.document.content),
         };
       } catch (err) {
-        const message =
-          err instanceof ApiError
-            ? err.message
-            : 'Failed to rename document.';
+        const message = err instanceof ApiError ? err.message : 'Failed to rename document.';
         setError(message);
         return null;
       } finally {
@@ -219,7 +210,7 @@ export function useDocuments(): UseDocumentsResult {
   );
 
   const deleteDocument = useCallback(
-    async (id: number): Promise<boolean> => {
+    async (id: string): Promise<boolean> => {
       const key = `delete:${id}`;
       if (inflightRef.current.has(key)) return false;
       inflightRef.current.add(key);
@@ -232,10 +223,7 @@ export function useDocuments(): UseDocumentsResult {
         }
         return true;
       } catch (err) {
-        const message =
-          err instanceof ApiError
-            ? err.message
-            : 'Failed to delete document.';
+        const message = err instanceof ApiError ? err.message : 'Failed to delete document.';
         setError(message);
         return false;
       } finally {
@@ -246,7 +234,7 @@ export function useDocuments(): UseDocumentsResult {
   );
 
   const saveDocument = useCallback(
-    async (id: number, content: JSONContent): Promise<DocumentDetail | null> => {
+    async (id: string, content: JSONContent): Promise<DocumentDetail | null> => {
       const key = `save:${id}`;
       if (inflightRef.current.has(key)) return null;
       inflightRef.current.add(key);
@@ -283,8 +271,7 @@ export function useDocuments(): UseDocumentsResult {
           content: parseContent(data.document.content),
         };
       } catch (err) {
-        const message =
-          err instanceof ApiError ? err.message : 'Failed to save document.';
+        const message = err instanceof ApiError ? err.message : 'Failed to save document.';
         setError(message);
         return null;
       } finally {
@@ -294,35 +281,29 @@ export function useDocuments(): UseDocumentsResult {
     [],
   );
 
-  const loadDocument = useCallback(
-    async (id: number): Promise<DocumentDetail | null> => {
-      const key = `load:${id}`;
-      if (inflightRef.current.has(key)) return null;
-      inflightRef.current.add(key);
-      try {
-        const data = await api<DocumentResponse>(`/api/documents/${id}`);
-        const detail: DocumentDetail = {
-          id: data.document.id,
-          title: data.document.title,
-          updatedAt: data.document.updatedAt,
-          createdAt: data.document.createdAt,
-          content: parseContent(data.document.content),
-        };
-        setSelectedDocument(detail);
-        return detail;
-      } catch (err) {
-        const message =
-          err instanceof ApiError
-            ? err.message
-            : 'Failed to load document.';
-        setError(message);
-        return null;
-      } finally {
-        inflightRef.current.delete(key);
-      }
-    },
-    [],
-  );
+  const loadDocument = useCallback(async (id: string): Promise<DocumentDetail | null> => {
+    const key = `load:${id}`;
+    if (inflightRef.current.has(key)) return null;
+    inflightRef.current.add(key);
+    try {
+      const data = await api<DocumentResponse>(`/api/documents/${id}`);
+      const detail: DocumentDetail = {
+        id: data.document.id,
+        title: data.document.title,
+        updatedAt: data.document.updatedAt,
+        createdAt: data.document.createdAt,
+        content: parseContent(data.document.content),
+      };
+      setSelectedDocument(detail);
+      return detail;
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Failed to load document.';
+      setError(message);
+      return null;
+    } finally {
+      inflightRef.current.delete(key);
+    }
+  }, []);
 
   return {
     documents,

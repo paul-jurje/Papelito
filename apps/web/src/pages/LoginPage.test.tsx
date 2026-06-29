@@ -24,7 +24,9 @@ interface FetchRoute {
 
 const routes: FetchRoute[] = [];
 
-function when(match: (url: string, init?: RequestInit) => boolean): { respond: (status: number, body: unknown) => void } {
+function when(match: (url: string, init?: RequestInit) => boolean): {
+  respond: (status: number, body: unknown) => void;
+} {
   const route: FetchRoute = { match, status: 200, body: {} };
   routes.push(route);
   return {
@@ -112,7 +114,9 @@ describe('LoginPage', () => {
 
   it('logs the user in and navigates to /editor by default', async () => {
     mockMeAsUnauthenticated();
-    when((url, init) => url.endsWith('/api/auth/login') && (init?.method ?? 'GET') === 'POST').respond(200, {
+    when(
+      (url, init) => url.endsWith('/api/auth/login') && (init?.method ?? 'GET') === 'POST',
+    ).respond(200, {
       user: sampleUser,
     });
 
@@ -131,7 +135,9 @@ describe('LoginPage', () => {
 
   it('honors ?next=/foo and navigates there after login', async () => {
     mockMeAsUnauthenticated();
-    when((url, init) => url.endsWith('/api/auth/login') && (init?.method ?? 'GET') === 'POST').respond(200, {
+    when(
+      (url, init) => url.endsWith('/api/auth/login') && (init?.method ?? 'GET') === 'POST',
+    ).respond(200, {
       user: sampleUser,
     });
 
@@ -149,7 +155,9 @@ describe('LoginPage', () => {
 
   it('ignores a non-path next value and falls back to /editor', async () => {
     mockMeAsUnauthenticated();
-    when((url, init) => url.endsWith('/api/auth/login') && (init?.method ?? 'GET') === 'POST').respond(200, {
+    when(
+      (url, init) => url.endsWith('/api/auth/login') && (init?.method ?? 'GET') === 'POST',
+    ).respond(200, {
       user: sampleUser,
     });
 
@@ -168,7 +176,9 @@ describe('LoginPage', () => {
 
   it('displays the server error message when login fails', async () => {
     mockMeAsUnauthenticated();
-    when((url, init) => url.endsWith('/api/auth/login') && (init?.method ?? 'GET') === 'POST').respond(401, {
+    when(
+      (url, init) => url.endsWith('/api/auth/login') && (init?.method ?? 'GET') === 'POST',
+    ).respond(401, {
       message: 'Invalid email or password',
     });
 
@@ -212,9 +222,11 @@ describe('LoginPage', () => {
 
     expect(capturedUrl).toBe('/api/auth/login');
     expect(capturedInit?.credentials).toBe('include');
-    expect(capturedInit?.body).toBe(JSON.stringify({
-      email: 'jane@example.com',
-      password: 'password123',
-    }));
+    expect(capturedInit?.body).toBe(
+      JSON.stringify({
+        email: 'jane@example.com',
+        password: 'password123',
+      }),
+    );
   });
 });

@@ -26,7 +26,7 @@ import {
  * leaking the existence of documents the caller cannot access.
  */
 export class NotFoundError extends Error {
-  constructor(documentId: number) {
+  constructor(documentId: string) {
     super(`Document not found: ${documentId}`);
     this.name = 'NotFoundError';
   }
@@ -45,10 +45,7 @@ export interface CreateDocumentData {
  * function; this layer trusts that any provided `content` is already a
  * well-formed ProseMirror JSON string.
  */
-export function createDocument(
-  userId: number,
-  data: CreateDocumentData = {},
-): Document {
+export function createDocument(userId: number, data: CreateDocumentData = {}): Document {
   return repoCreateDocument(db, {
     userId,
     title: data.title ?? DEFAULT_DOCUMENT_TITLE,
@@ -68,7 +65,7 @@ export function listDocuments(userId: number): Document[] {
  * `NotFoundError` otherwise (covers both "doesn't exist" and "owned by someone
  * else" — callers don't need to distinguish).
  */
-export function getDocument(userId: number, documentId: number): Document {
+export function getDocument(userId: number, documentId: string): Document {
   const doc = getDocumentByIdAndUserId(db, documentId, userId);
   if (!doc) throw new NotFoundError(documentId);
   return doc;
@@ -80,7 +77,7 @@ export function getDocument(userId: number, documentId: number): Document {
  */
 export function updateDocument(
   userId: number,
-  documentId: number,
+  documentId: string,
   data: UpdateDocumentInput,
 ): Document {
   const updated = repoUpdateDocument(db, documentId, userId, data);
@@ -95,7 +92,7 @@ export function updateDocument(
  * are reported the same way (idempotency aside, we never want to silently
  * succeed a no-op for an unauthorized actor).
  */
-export function deleteDocument(userId: number, documentId: number): void {
+export function deleteDocument(userId: number, documentId: string): void {
   const removed = repoDeleteDocument(db, documentId, userId);
   if (!removed) throw new NotFoundError(documentId);
 }

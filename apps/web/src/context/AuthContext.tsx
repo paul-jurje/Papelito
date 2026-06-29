@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ApiError, api } from '../lib/api';
 
 /**
@@ -97,38 +90,32 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     };
   }, []);
 
-  const login = useCallback(
-    async (email: string, password: string): Promise<AuthUser> => {
-      const data = await api<AuthResponse>('/api/auth/login', {
-        method: 'POST',
-        body: { email, password },
-      });
-      setUser(data.user);
-      // Re-fetch /me to pick up an existing subscription, since the login
-      // response itself does not include it.
-      try {
-        const me = await api<MeResponse>('/api/auth/me');
-        setIsSubscriber(me.isSubscriber === true);
-      } catch {
-        setIsSubscriber(false);
-      }
-      return data.user;
-    },
-    [],
-  );
-
-  const register = useCallback(
-    async (email: string, password: string): Promise<AuthUser> => {
-      const data = await api<AuthResponse>('/api/auth/register', {
-        method: 'POST',
-        body: { email, password },
-      });
-      setUser(data.user);
+  const login = useCallback(async (email: string, password: string): Promise<AuthUser> => {
+    const data = await api<AuthResponse>('/api/auth/login', {
+      method: 'POST',
+      body: { email, password },
+    });
+    setUser(data.user);
+    // Re-fetch /me to pick up an existing subscription, since the login
+    // response itself does not include it.
+    try {
+      const me = await api<MeResponse>('/api/auth/me');
+      setIsSubscriber(me.isSubscriber === true);
+    } catch {
       setIsSubscriber(false);
-      return data.user;
-    },
-    [],
-  );
+    }
+    return data.user;
+  }, []);
+
+  const register = useCallback(async (email: string, password: string): Promise<AuthUser> => {
+    const data = await api<AuthResponse>('/api/auth/register', {
+      method: 'POST',
+      body: { email, password },
+    });
+    setUser(data.user);
+    setIsSubscriber(false);
+    return data.user;
+  }, []);
 
   const logout = useCallback(async (): Promise<void> => {
     await api('/api/auth/logout', { method: 'POST' });

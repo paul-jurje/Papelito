@@ -5,9 +5,7 @@ import Stripe from 'stripe';
 // we'd rather fail loudly on boot than at request time.
 const apiKey = process.env.STRIPE_SECRET_KEY;
 if (!apiKey) {
-  throw new Error(
-    'STRIPE_SECRET_KEY is not set. Add it to your environment (see .env.example).',
-  );
+  throw new Error('STRIPE_SECRET_KEY is not set. Add it to your environment (see .env.example).');
 }
 
 // We intentionally let the SDK use its default `apiVersion` (the one baked
