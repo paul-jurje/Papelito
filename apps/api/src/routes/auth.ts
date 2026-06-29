@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import passport from '../lib/passport.js';
 import { register, logout, EmailAlreadyExistsError } from '../services/authService.js';
+import { requestPasswordReset, resetPassword } from '../services/passwordResetService.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { db } from '../db/index.js';
 import { getSubscriptionByUserId } from '../repositories/subscriptionRepository.js';
@@ -77,6 +78,48 @@ authRouter.post('/logout', (req: Request, res: Response, next: NextFunction) => 
       });
     })
     .catch(next);
+});
+
+authRouter.post('/forgot-password', async (req: Request, res: Response) => {
+  const { email } = req.body ?? {};
+  if (typeof email !== 'string' || !EMAIL_REGEX.test(email)) {
+    return res.status(400).json({ message: 'Please enter a valid email address.' });
+  }
+
+  try {
+    const result = await requestPasswordReset(email);
+    return res.status(200).json({ resetUrl: result.resetUrl });
+  } catch {
+    return res.status(200).json({ resetUrl: null });
+  }
+});
+
+authRouter.post('/reset-password', async (req: Request, res: Response) => {
+  const { token, password } = req.body ?? {};
+  if (typeof token !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ message: 'Invalid or expired reset token.' });
+  }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ message: 'Password must be at least 8 characters.' });
+  }
+
+  try {
+    await resetPassword(token, password);
+    // Destroy the current session so the cookie used for this request cannot
+    // be replayed after the password changes. The service already deletes all
+    // sessions for the user from the store.
+    await new Promise<void>((resolve, reject) => {
+      req.session.destroy((err) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+    res.clearCookie('connect.sid');
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Invalid or expired reset token.';
+    return res.status(400).json({ message });
+  }
 });
 
 authRouter.get('/me', requireAuth, (req, res) => {

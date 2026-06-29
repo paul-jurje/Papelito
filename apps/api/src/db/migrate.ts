@@ -7,7 +7,10 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = resolve(here, '../../drizzle');
-const url = process.env.DATABASE_URL ?? 'papelito.db';
+let url = process.env.DATABASE_URL ?? 'papelito.db';
+if (url !== ':memory:' && !url.startsWith('file:') && !url.startsWith('/')) {
+  url = resolve(here, '../../', url);
+}
 
 const sqlite = new Database(url);
 sqlite.pragma('journal_mode = WAL');

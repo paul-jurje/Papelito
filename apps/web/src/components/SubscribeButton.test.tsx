@@ -19,6 +19,12 @@ function makeAuthValue(overrides: Partial<AuthContextValue> = {}): AuthContextVa
     login: overrides.login ?? (vi.fn() as AuthContextValue['login']),
     register: overrides.register ?? (vi.fn() as AuthContextValue['register']),
     logout: overrides.logout ?? (vi.fn() as AuthContextValue['logout']),
+    requestPasswordReset:
+      overrides.requestPasswordReset ??
+      (vi.fn(async () => ({ resetUrl: null })) as AuthContextValue['requestPasswordReset']),
+    resetPassword:
+      overrides.resetPassword ??
+      (vi.fn(async () => ({ success: true })) as AuthContextValue['resetPassword']),
     refresh: overrides.refresh ?? (vi.fn(async () => undefined) as AuthContextValue['refresh']),
   };
 }

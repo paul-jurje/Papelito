@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export function Header(): JSX.Element {
-  const { isAuthenticated, isLoading, user, logout } = useAuth();
+  const { isAuthenticated, isLoading, user, logout, isSubscriber } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   async function handleLogout(): Promise<void> {
@@ -56,13 +56,24 @@ export function Header(): JSX.Element {
         <div className="flex items-center gap-3">
           {!isLoading && isAuthenticated && user !== null && (
             <>
-              <span
-                data-testid="user-email"
-                className="hidden max-w-[12rem] truncate text-xs font-medium text-slate-500 sm:inline"
-                title={user.email}
-              >
-                {user.email}
-              </span>
+              <div className="hidden items-center gap-2 rounded-full border border-slate-100 bg-slate-50/50 pl-2.5 pr-3 py-1 sm:flex max-w-[16rem]">
+                <span
+                  data-testid="user-email"
+                  className="truncate text-xs font-semibold text-slate-650"
+                  title={user.email}
+                >
+                  {user.email}
+                </span>
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                    isSubscriber
+                      ? 'bg-emerald-50 text-emerald-705 border border-emerald-100'
+                      : 'bg-slate-100 text-slate-500 border border-slate-200/40'
+                  }`}
+                >
+                  {isSubscriber ? 'Pro' : 'Free'}
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={handleLogout}

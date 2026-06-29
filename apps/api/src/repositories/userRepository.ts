@@ -27,3 +27,7 @@ export function getUserById(db: Db, id: number): User | undefined {
   const row = db.select().from(users).where(eq(users.id, id)).get();
   return row ? toUser(row) : undefined;
 }
+
+export function updateUserPassword(db: Db, userId: number, passwordHash: string): void {
+  db.update(users).set({ passwordHash }).where(eq(users.id, userId)).run();
+}

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthContext, type AuthContextValue } from '../context/AuthContext';
 import CheckoutReturnPage from './CheckoutReturnPage';
@@ -32,6 +32,10 @@ function makeAuthContextValue(overrides: AuthStubOverrides = {}): AuthContextVal
     logout: vi.fn(async () => {
       /* default no-op */
     }) as AuthContextValue['logout'],
+    requestPasswordReset: vi.fn(async () => ({
+      resetUrl: null,
+    })) as AuthContextValue['requestPasswordReset'],
+    resetPassword: vi.fn(async () => ({ success: true })) as AuthContextValue['resetPassword'],
     refresh,
   };
 }
@@ -51,6 +55,13 @@ function renderPage(
       </MemoryRouter>
     </AuthContext.Provider>,
   );
+}
+
+function sessionResponse(verified: boolean) {
+  return new Response(JSON.stringify({ verified, status: 'active', sessionId: 'cs_test_123' }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
 
 describe('CheckoutReturnPage', () => {
@@ -103,7 +114,7 @@ describe('CheckoutReturnPage', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it('refetches auth state and navigates to /editor on success', async () => {
+  it('calls the session verification endpoint and navigates to /editor on success', async () => {
     const refresh = vi.fn(async () => undefined);
     const auth = makeAuthContextValue({
       isAuthenticated: true,
@@ -111,45 +122,153 @@ describe('CheckoutReturnPage', () => {
       refresh,
     });
 
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/billing/session/cs_test_123') {
+        return Promise.resolve(sessionResponse(true));
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ user: { id: 1 }, isSubscriber: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+
     renderPage(auth, '/checkout-return?success=true&session_id=cs_test_123');
 
-    // First, the loading view is rendered while we wait for the webhook.
     expect(screen.getByTestId('checkout-loading')).toBeInTheDocument();
 
     await waitFor(
       () => {
-        expect(refresh).toHaveBeenCalled();
-      },
-      { timeout: 5000 },
-    );
-
-    // After the success path completes, the editor stub renders.
-    await waitFor(
-      () => {
         expect(screen.getByTestId('editor-page-stub')).toBeInTheDocument();
       },
       { timeout: 5000 },
     );
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/billing/session/cs_test_123', expect.any(Object));
+    expect(refresh).toHaveBeenCalled();
   });
 
-  it('still navigates to /editor if the refresh call rejects', async () => {
-    const refresh = vi.fn(async () => {
-      throw new Error('network down');
-    });
+  it('polls the session endpoint until verified, then navigates', async () => {
+    const refresh = vi.fn(async () => undefined);
     const auth = makeAuthContextValue({
       isAuthenticated: true,
+      isSubscriber: false,
       refresh,
     });
 
-    renderPage(auth, '/checkout-return?success=true');
+    let calls = 0;
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/billing/session/cs_test_123') {
+        calls += 1;
+        return Promise.resolve(sessionResponse(calls >= 3));
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ user: { id: 1 }, isSubscriber: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
 
-    // Even if refresh() throws, the page must still redirect the user to
-    // /editor so they aren't stuck on a confirmation screen.
-    await waitFor(
-      () => {
-        expect(screen.getByTestId('editor-page-stub')).toBeInTheDocument();
-      },
-      { timeout: 5000 },
-    );
+    vi.useFakeTimers();
+    renderPage(auth, '/checkout-return?success=true&session_id=cs_test_123');
+
+    // First verification attempt
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(calls).toBe(1);
+
+    // Second attempt after poll interval
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_500);
+    });
+    expect(calls).toBe(2);
+
+    // Third attempt verifies; refresh + navigation follow
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_500);
+    });
+    expect(calls).toBe(3);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByTestId('editor-page-stub')).toBeInTheDocument();
+    expect(refresh).toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it('shows a pending screen when the session never verifies', async () => {
+    const refresh = vi.fn(async () => undefined);
+    const auth = makeAuthContextValue({
+      isAuthenticated: true,
+      isSubscriber: false,
+      refresh,
+    });
+
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/billing/session/cs_test_123') {
+        return Promise.resolve(sessionResponse(false));
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ user: { id: 1 }, isSubscriber: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+
+    vi.useFakeTimers();
+    renderPage(auth, '/checkout-return?success=true&session_id=cs_test_123');
+
+    // 10 attempts * 1.5s = ~15s total polling window
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+
+    expect(screen.getByTestId('checkout-pending')).toBeInTheDocument();
+    expect(screen.getByText(/still waiting for stripe/i)).toBeInTheDocument();
+    expect(screen.getByTestId('checkout-reload')).toBeInTheDocument();
+    expect(refresh).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it('falls back to auth refresh polling when the session endpoint fails', async () => {
+    const refresh = vi.fn(async () => undefined);
+    const auth = makeAuthContextValue({
+      isAuthenticated: true,
+      isSubscriber: false,
+      refresh,
+    });
+
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/billing/session/cs_test_123') {
+        return Promise.reject(new Error('session lookup failed'));
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ user: { id: 1 }, isSubscriber: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+
+    vi.useFakeTimers();
+    renderPage(auth, '/checkout-return?success=true&session_id=cs_test_123');
+
+    // The session endpoint rejects immediately; fallback refresh loop runs
+    // 3 times with 750ms delays.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000);
+    });
+
+    expect(refresh).toHaveBeenCalledTimes(3);
+    expect(screen.getByTestId('editor-page-stub')).toBeInTheDocument();
+
+    vi.useRealTimers();
   });
 });

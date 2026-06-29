@@ -17,7 +17,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const migrationsFolder = resolve(here, '../../drizzle');
 
 export function createDb(url?: string): DbHandle {
-  const target = url ?? process.env.DATABASE_URL ?? 'papelito.db';
+  let target = url ?? process.env.DATABASE_URL ?? 'papelito.db';
+  if (target !== ':memory:' && !target.startsWith('file:') && !target.startsWith('/')) {
+    target = resolve(here, '../../', target);
+  }
   const sqlite = new Database(target);
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ApiError, api } from '../lib/api';
+import { ApiError, api, requestPasswordReset, resetPassword } from '../lib/api';
 
 /**
  * Shape of the user returned by the API. The server strips the password hash
@@ -26,6 +26,8 @@ export interface AuthContextValue {
   login: (email: string, password: string) => Promise<AuthUser>;
   register: (email: string, password: string) => Promise<AuthUser>;
   logout: () => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<{ resetUrl: string | null }>;
+  resetPassword: (token: string, password: string) => Promise<{ success: boolean }>;
   /**
    * Re-fetch `/api/auth/me` and reconcile `user` + `isSubscriber` with the
    * server. Used after Stripe Checkout completes so the UI picks up the
@@ -150,9 +152,21 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       login,
       register,
       logout,
+      requestPasswordReset,
+      resetPassword,
       refresh,
     }),
-    [user, isLoading, isSubscriber, login, register, logout, refresh],
+    [
+      user,
+      isLoading,
+      isSubscriber,
+      login,
+      register,
+      logout,
+      requestPasswordReset,
+      resetPassword,
+      refresh,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -77,12 +77,32 @@ local `plans` table and exposed to the frontend.
 - `POST /api/billing/checkout-session` requires a JSON body with `{ planId }`
   (selected from the plans endpoint) and returns `{ url, sessionId }`. An
   invalid or inactive `planId` responds with `400`.
+- `GET /api/billing/session/:sessionId` (authenticated) verifies a Stripe
+  Checkout Session directly with Stripe. If the session is paid and belongs to
+  the calling user, the local `subscriptions` row is upserted immediately.
+  This closes the temporary "paid but not subscribed" gap caused by delayed
+  webhooks. The endpoint returns `{ verified, status?, sessionId }`.
+- `verifyCheckoutSession` in `src/services/billingService.ts` performs the
+  Stripe lookup, validates `client_reference_id` against the caller, resolves
+  the local `planId` from the subscription's price, and upserts the
+  subscription.
 - On startup the API calls `syncPlansFromStripe()` to upsert active recurring
   Stripe prices into the `plans` table. Sync failures are logged but do not
   block server startup.
 - Webhook handlers (`customer.subscription.updated`,
   `checkout.session.completed`) resolve the matching local `planId` from the
-  Stripe price id on the subscription's item(s).
+  Stripe price id on the subscription's item(s). Webhooks remain the source of
+  truth for renewals, cancellations, and charge failures.
+
+## Password reset
+
+Self-service password reset with single-use tokens.
+
+- `POST /api/auth/forgot-password` accepts `{ email }`, creates a single-use reset token (hashed with Node.js `crypto`, 15-minute expiry) in `password_resets`, and returns `{ resetUrl }`. Unknown emails still return `200` with `resetUrl: null`.
+- `POST /api/auth/reset-password` accepts `{ token, password }`, validates the token and that password length is ≥ 8, updates the user's password hash, deletes the token, invalidates existing sessions, and returns `200`. Invalid or expired tokens return `400`.
+- A new migration creates the `password_resets` table with columns `(userId, tokenHash, expiresAt)`.
+- Implementation lives in `src/services/passwordResetService.ts` and `src/repositories/passwordResetRepository.ts`, both with unit tests.
+- Only Node.js `crypto` is used for token generation and hashing; no email provider is integrated.
 
 ## IDs and primary keys
 

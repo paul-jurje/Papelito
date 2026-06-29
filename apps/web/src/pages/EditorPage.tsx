@@ -231,6 +231,7 @@ export function EditorPage(): ReactNode {
         title={selectedDocument?.title ?? 'Untitled document'}
         saveStatus={saveStatus}
         userEmail={user?.email ?? null}
+        isSubscriber={isSubscriber}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -285,9 +286,10 @@ interface HeaderProps {
   title: string;
   saveStatus: SaveStatus;
   userEmail: string | null;
+  isSubscriber: boolean;
 }
 
-function Header({ title, saveStatus, userEmail }: HeaderProps): JSX.Element {
+function Header({ title, saveStatus, userEmail, isSubscriber }: HeaderProps): JSX.Element {
   return (
     <header className="flex items-center justify-between border-b border-slate-100 bg-white px-5 py-3.5 shadow-xs">
       <div className="flex min-w-0 items-center gap-3">
@@ -327,9 +329,20 @@ function Header({ title, saveStatus, userEmail }: HeaderProps): JSX.Element {
       </div>
       <div className="flex items-center gap-2">
         {userEmail && (
-          <span className="hidden truncate text-xs font-semibold text-slate-400 sm:inline bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">
-            {userEmail}
-          </span>
+          <div className="hidden items-center gap-2 rounded-full border border-slate-100 bg-slate-50/50 pl-2.5 pr-3 py-1 sm:flex max-w-[16rem]">
+            <span className="truncate text-xs font-semibold text-slate-650" title={userEmail}>
+              {userEmail}
+            </span>
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                isSubscriber
+                  ? 'bg-emerald-50 text-emerald-705 border border-emerald-100'
+                  : 'bg-slate-100 text-slate-500 border border-slate-200/40'
+              }`}
+            >
+              {isSubscriber ? 'Pro' : 'Free'}
+            </span>
+          </div>
         )}
       </div>
     </header>
@@ -402,9 +415,14 @@ function UpsellScreen({ userEmail }: UpsellScreenProps): JSX.Element {
             <span>Papelito</span>
           </Link>
           {userEmail && (
-            <span className="hidden truncate text-xs font-semibold text-slate-400 sm:inline bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">
-              {userEmail}
-            </span>
+            <div className="hidden items-center gap-2 rounded-full border border-slate-100 bg-slate-50/50 pl-2.5 pr-3 py-1 sm:flex max-w-[16rem]">
+              <span className="truncate text-xs font-semibold text-slate-650" title={userEmail}>
+                {userEmail}
+              </span>
+              <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-505 border border-slate-200/40">
+                Free
+              </span>
+            </div>
           )}
         </div>
       </header>

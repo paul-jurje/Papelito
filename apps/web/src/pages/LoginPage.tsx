@@ -107,6 +107,13 @@ export function LoginPage(): JSX.Element {
               </p>
             )}
 
+            <Link
+              to="/forgot-password"
+              className="block text-right text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+            >
+              Forgot password?
+            </Link>
+
             <button
               type="submit"
               disabled={isSubmitting}

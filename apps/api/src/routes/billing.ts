@@ -4,6 +4,7 @@ import { db } from '../db/index.js';
 import {
   createCheckoutSession,
   processWebhookEvent,
+  verifyCheckoutSession,
   PlanNotFoundError,
   InactivePlanError,
 } from '../services/billingService.js';
@@ -48,6 +49,24 @@ billingRouter.post('/checkout-session', requireAuth, async (req, res, next) => {
       res.status(400).json({ message: err.message });
       return;
     }
+    next(err);
+  }
+});
+
+// GET /api/billing/session/:sessionId
+// Verifies a Stripe Checkout Session on browser return. If payment succeeded,
+// the local subscription row is activated immediately, closing the gap before
+// the webhook arrives.
+billingRouter.get('/session/:sessionId', requireAuth, async (req, res, next) => {
+  try {
+    const sessionId = req.params.sessionId;
+    if (!sessionId || typeof sessionId !== 'string' || !sessionId.startsWith('cs_')) {
+      res.status(400).json({ message: 'Invalid session id' });
+      return;
+    }
+    const result = await verifyCheckoutSession(req.user!.id, sessionId);
+    res.json(result);
+  } catch (err) {
     next(err);
   }
 });

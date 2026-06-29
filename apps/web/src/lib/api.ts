@@ -78,3 +78,20 @@ export async function api<T = unknown>(path: string, options: ApiRequestOptions 
 
   return parsed as T;
 }
+
+export async function requestPasswordReset(email: string): Promise<{ resetUrl: string | null }> {
+  return api<{ resetUrl: string | null }>('/api/auth/forgot-password', {
+    method: 'POST',
+    body: { email },
+  });
+}
+
+export async function resetPassword(
+  token: string,
+  password: string,
+): Promise<{ success: boolean }> {
+  return api<{ success: boolean }>('/api/auth/reset-password', {
+    method: 'POST',
+    body: { token, password },
+  });
+}
