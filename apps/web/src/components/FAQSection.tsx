@@ -7,11 +7,6 @@ type FAQItem = {
 
 const faqs: FAQItem[] = [
   {
-    question: 'How does the free trial work?',
-    answer:
-      'Sign up and you can start writing immediately. We ask you to subscribe after your first week so you can experience the editor without a paywall in the way.',
-  },
-  {
     question: 'Can I cancel my subscription anytime?',
     answer:
       'Yes. You can cancel from your account settings at any time. You will keep access through the end of your current billing period.',
