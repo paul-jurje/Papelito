@@ -287,7 +287,8 @@ interface HeaderProps {
   saveStatus: SaveStatus;
   userEmail: string | null;
   isSubscriber: boolean;
-}function Header({ title, saveStatus, userEmail, isSubscriber }: HeaderProps): JSX.Element {
+}
+function Header({ title, saveStatus, userEmail, isSubscriber }: HeaderProps): JSX.Element {
   const { logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -405,11 +406,14 @@ interface HeaderProps {
                   <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider select-none">
                     Signed in as
                   </p>
-                  <p className="truncate text-xs font-semibold text-slate-700 mt-0.5" title={userEmail}>
+                  <p
+                    className="truncate text-xs font-semibold text-slate-700 mt-0.5"
+                    title={userEmail}
+                  >
                     {userEmail}
                   </p>
                 </div>
-                
+
                 <div className="h-px bg-slate-100 my-1" />
 
                 <div className="space-y-0.5">

@@ -118,11 +118,14 @@ export function Header(): JSX.Element {
                     <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider select-none">
                       Signed in as
                     </p>
-                    <p className="truncate text-xs font-semibold text-slate-700 mt-0.5" title={user.email}>
+                    <p
+                      className="truncate text-xs font-semibold text-slate-700 mt-0.5"
+                      title={user.email}
+                    >
                       {user.email}
                     </p>
                   </div>
-                  
+
                   <div className="h-px bg-slate-100 my-1" />
 
                   <div className="space-y-0.5">

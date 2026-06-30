@@ -20,7 +20,9 @@ export function HeroSection(): JSX.Element {
           data-testid="hero-headline"
         >
           Write more.
-          <span className="block mt-1 bg-gradient-to-r from-indigo-600 via-indigo-900 to-indigo-600 bg-clip-text text-transparent pb-2">Worry less.</span>
+          <span className="block mt-1 bg-gradient-to-r from-indigo-600 via-indigo-900 to-indigo-600 bg-clip-text text-transparent pb-2">
+            Worry less.
+          </span>
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-base text-slate-600 sm:text-lg">
           Papelito is a distraction-free writing app that saves your work as you type. No clutter,
