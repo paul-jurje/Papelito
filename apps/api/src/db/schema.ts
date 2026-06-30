@@ -60,6 +60,17 @@ export const subscriptions = sqliteTable('subscriptions', {
   updatedAt: autoUpdatedAt('updated_at'),
 });
 
+export const passwordResets = sqliteTable('password_resets', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  tokenHash: text('token_hash').notNull().unique(),
+  expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+  createdAt: timestamp('created_at'),
+  updatedAt: autoUpdatedAt('updated_at'),
+});
+
 export type DbUser = typeof users.$inferSelect;
 export type DbNewUser = typeof users.$inferInsert;
 export type DbDocument = typeof documents.$inferSelect;
@@ -68,3 +79,5 @@ export type DbPlan = typeof plans.$inferSelect;
 export type DbNewPlan = typeof plans.$inferInsert;
 export type DbSubscription = typeof subscriptions.$inferSelect;
 export type DbNewSubscription = typeof subscriptions.$inferInsert;
+export type DbPasswordReset = typeof passwordResets.$inferSelect;
+export type DbNewPasswordReset = typeof passwordResets.$inferInsert;

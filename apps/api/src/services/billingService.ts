@@ -24,6 +24,12 @@ export interface CreateCheckoutSessionDeps {
   cancelUrl?: string;
 }
 
+export interface VerifySessionResult {
+  verified: boolean;
+  status?: string;
+  sessionId: string;
+}
+
 export class PlanNotFoundError extends Error {
   constructor(planId: string) {
     super(`Plan "${planId}" not found.`);
@@ -52,6 +58,12 @@ function readPriceId(sub: Pick<Stripe.Subscription, 'items'>): string | null {
   const price = item.price;
   if (typeof price === 'string') return price;
   return price?.id ?? null;
+}
+
+async function resolvePlanFromSubscription(sub: Pick<Stripe.Subscription, 'items'>) {
+  const priceId = readPriceId(sub);
+  if (!priceId) return undefined;
+  return getPlanByStripePriceId(db, priceId);
 }
 
 /**
@@ -117,6 +129,77 @@ export async function createCheckoutSession(
   }
 
   return { url: session.url, sessionId: session.id };
+}
+
+/**
+ * Verify a Stripe Checkout Session on browser return and, if payment is
+ * complete, upsert the local subscription row immediately. This closes the
+ * gap caused by delayed webhooks without replacing them.
+ */
+export async function verifyCheckoutSession(
+  userId: number,
+  sessionId: string,
+  deps: { stripeClient?: Stripe } = {},
+): Promise<VerifySessionResult> {
+  const stripeClient = deps.stripeClient ?? stripe;
+
+  const session = await stripeClient.checkout.sessions.retrieve(sessionId, {
+    expand: ['subscription'],
+  });
+
+  if (session.mode !== 'subscription') {
+    return { verified: false, sessionId };
+  }
+  if (session.payment_status !== 'paid') {
+    return { verified: false, sessionId };
+  }
+  if (!session.client_reference_id || session.client_reference_id !== String(userId)) {
+    return { verified: false, sessionId };
+  }
+
+  let sub: Stripe.Subscription | null = null;
+  if (session.subscription && typeof session.subscription === 'object') {
+    sub = session.subscription as Stripe.Subscription;
+  } else if (session.subscription && typeof session.subscription === 'string') {
+    sub = await stripeClient.subscriptions.retrieve(session.subscription);
+  }
+
+  if (!sub) {
+    // Subscription-mode checkout should always include a subscription id.
+    // Record the customer link optimistically so future checkouts reuse it.
+    createOrUpdateSubscription(db, {
+      userId,
+      stripeCustomerId: typeof session.customer === 'string' ? session.customer : undefined,
+      status: ACTIVE_STATUS,
+    });
+    return { verified: true, status: ACTIVE_STATUS, sessionId };
+  }
+
+  const resolvedPlan = await resolvePlanFromSubscription(sub);
+  createOrUpdateSubscription(db, {
+    userId,
+    planId: resolvedPlan?.id ?? null,
+    stripeCustomerId:
+      (typeof session.customer === 'string' ? session.customer : undefined) ??
+      (typeof sub.customer === 'string' ? sub.customer : undefined),
+    stripeSubscriptionId: sub.id,
+    status: sub.status,
+    currentPeriodEnd: readPeriodEnd(sub),
+  });
+
+  return { verified: true, status: sub.status, sessionId };
+}
+
+/**
+ * Stripe moved `current_period_end` from the top-level Subscription to its
+ * items array in newer API versions. Helper that pulls the latest period end
+ * from whichever location it's available.
+ */
+function readPeriodEnd(sub: Pick<Stripe.Subscription, 'items'>): Date | null {
+  const item = sub.items.data[0];
+  if (!item) return null;
+  const ts = item.current_period_end;
+  return typeof ts === 'number' ? new Date(ts * 1000) : null;
 }
 
 /**
@@ -191,25 +274,7 @@ export async function processWebhookEvent(
     return;
   }
 
-  async function resolvePlanFromSubscription(sub: Pick<Stripe.Subscription, 'items'>) {
-    const priceId = readPriceId(sub);
-    if (!priceId) return undefined;
-    return getPlanByStripePriceId(db, priceId);
-  }
-
   // Unhandled event types are ignored (Stripe may send many we don't care about).
-}
-
-/**
- * Stripe moved `current_period_end` from the top-level Subscription to its
- * items array in newer API versions. Helper that pulls the latest period end
- * from whichever location it's available.
- */
-function readPeriodEnd(sub: Pick<Stripe.Subscription, 'items'>): Date | null {
-  const item = sub.items.data[0];
-  if (!item) return null;
-  const ts = item.current_period_end;
-  return typeof ts === 'number' ? new Date(ts * 1000) : null;
 }
 
 function readMetadataUserId(metadata: Stripe.Metadata | null | undefined): number | null {

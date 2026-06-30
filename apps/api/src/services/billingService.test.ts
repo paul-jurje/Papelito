@@ -11,6 +11,7 @@ import { createUser } from '../repositories/userRepository.js';
 import {
   createCheckoutSession,
   processWebhookEvent,
+  verifyCheckoutSession,
   PlanNotFoundError,
   InactivePlanError,
 } from './billingService.js';
@@ -26,6 +27,7 @@ const { stripeStub } = vi.hoisted(() => {
     checkout: {
       sessions: {
         create: vi.fn(),
+        retrieve: vi.fn(),
       },
     },
     subscriptions: {
@@ -315,6 +317,157 @@ describe('billingService', () => {
       expect(sub).toBeDefined();
       expect(sub!.planId).toBeNull();
       expect(sub!.status).toBe('past_due');
+    });
+
+    describe('verifyCheckoutSession', () => {
+      it('returns verified:false for an unpaid session', async () => {
+        const userId = seedUser('unpaid@example.com');
+        const client = makeStripe();
+        (client.checkout.sessions.retrieve as Mock).mockResolvedValue({
+          id: 'cs_unpaid',
+          mode: 'subscription',
+          payment_status: 'unpaid',
+          client_reference_id: String(userId),
+        });
+
+        const result = await verifyCheckoutSession(userId, 'cs_unpaid', {
+          stripeClient: client,
+        });
+
+        expect(result).toEqual({ verified: false, sessionId: 'cs_unpaid' });
+        expect(client.checkout.sessions.retrieve).toHaveBeenCalledWith('cs_unpaid', {
+          expand: ['subscription'],
+        });
+      });
+
+      it('returns verified:false when the session belongs to another user', async () => {
+        const userId = seedUser('owner@example.com');
+        const client = makeStripe();
+        (client.checkout.sessions.retrieve as Mock).mockResolvedValue({
+          id: 'cs_mismatch',
+          mode: 'subscription',
+          payment_status: 'paid',
+          client_reference_id: '99999',
+        });
+
+        const result = await verifyCheckoutSession(userId, 'cs_mismatch', {
+          stripeClient: client,
+        });
+
+        expect(result).toEqual({ verified: false, sessionId: 'cs_mismatch' });
+        expect(getSubscriptionByUserId(db, userId)).toBeUndefined();
+      });
+
+      it('upserts subscription and returns verified:true for a paid session', async () => {
+        const userId = seedUser('paid@example.com');
+        const plan = seedPlan('price_paid');
+        const client = makeStripe();
+        (client.checkout.sessions.retrieve as Mock).mockResolvedValue({
+          id: 'cs_paid',
+          mode: 'subscription',
+          payment_status: 'paid',
+          client_reference_id: String(userId),
+          customer: 'cus_paid',
+          subscription: {
+            id: 'sub_paid',
+            customer: 'cus_paid',
+            status: 'active',
+            items: {
+              data: [
+                {
+                  current_period_end: 1_700_000_000,
+                  price: { id: plan.stripePriceId },
+                },
+              ],
+            },
+          },
+        });
+
+        const result = await verifyCheckoutSession(userId, 'cs_paid', {
+          stripeClient: client,
+        });
+
+        expect(result).toEqual({
+          verified: true,
+          status: 'active',
+          sessionId: 'cs_paid',
+        });
+
+        const sub = getSubscriptionByUserId(db, userId);
+        expect(sub).toBeDefined();
+        expect(sub).toMatchObject({
+          userId,
+          planId: plan.id,
+          status: 'active',
+          stripeCustomerId: 'cus_paid',
+          stripeSubscriptionId: 'sub_paid',
+        });
+        expect(sub!.currentPeriodEnd).toBeInstanceOf(Date);
+      });
+
+      it('retrieves subscription id from Stripe when not expanded', async () => {
+        const userId = seedUser('retrieve@example.com');
+        const plan = seedPlan('price_retrieve');
+        const client = makeStripe();
+        (client.checkout.sessions.retrieve as Mock).mockResolvedValue({
+          id: 'cs_retrieve',
+          mode: 'subscription',
+          payment_status: 'paid',
+          client_reference_id: String(userId),
+          customer: 'cus_retrieve',
+          subscription: 'sub_retrieve',
+        });
+        (client.subscriptions.retrieve as Mock).mockResolvedValue({
+          id: 'sub_retrieve',
+          customer: 'cus_retrieve',
+          status: 'active',
+          items: {
+            data: [
+              {
+                current_period_end: 1_700_000_000,
+                price: { id: plan.stripePriceId },
+              },
+            ],
+          },
+        });
+
+        const result = await verifyCheckoutSession(userId, 'cs_retrieve', {
+          stripeClient: client,
+        });
+
+        expect(result.verified).toBe(true);
+        expect(client.subscriptions.retrieve).toHaveBeenCalledWith('sub_retrieve');
+        expect(getSubscriptionByUserId(db, userId)?.stripeSubscriptionId).toBe('sub_retrieve');
+      });
+
+      it('records optimistic status when subscription id is missing', async () => {
+        const userId = seedUser('missing-sub@example.com');
+        const client = makeStripe();
+        (client.checkout.sessions.retrieve as Mock).mockResolvedValue({
+          id: 'cs_missing',
+          mode: 'subscription',
+          payment_status: 'paid',
+          client_reference_id: String(userId),
+          customer: 'cus_missing',
+          subscription: null,
+        });
+
+        const result = await verifyCheckoutSession(userId, 'cs_missing', {
+          stripeClient: client,
+        });
+
+        expect(result).toEqual({
+          verified: true,
+          status: 'active',
+          sessionId: 'cs_missing',
+        });
+        expect(getSubscriptionByUserId(db, userId)).toMatchObject({
+          userId,
+          status: 'active',
+          stripeCustomerId: 'cus_missing',
+          stripeSubscriptionId: null,
+        });
+      });
     });
   });
 });

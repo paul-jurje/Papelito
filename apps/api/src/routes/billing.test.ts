@@ -27,6 +27,7 @@ const { stripeMock } = vi.hoisted(() => {
     checkout: {
       sessions: {
         create: vi.fn(),
+        retrieve: vi.fn(),
       },
     },
     subscriptions: {
@@ -261,6 +262,100 @@ describe('POST /api/billing/checkout-session', () => {
       email: 'newbuyer@example.com',
       metadata: { userId: String(userId) },
     });
+  });
+});
+
+describe('GET /api/billing/session/:sessionId', () => {
+  let handle: TestDbHandle;
+
+  beforeEach(() => {
+    handle = createTestDb();
+    stripeMock.checkout.sessions.retrieve.mockReset();
+  });
+
+  afterEach(() => {
+    handle.sqlite.close();
+  });
+
+  it('returns 401 when not authenticated', async () => {
+    const res = await request(app).get('/api/billing/session/cs_test_123');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 400 for a malformed session id', async () => {
+    const a = agent();
+    await a.post('/api/auth/register').send({
+      email: 'session@example.com',
+      password: 'password123',
+    });
+
+    const res = await a.get('/api/billing/session/not-a-session');
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/invalid session id/i);
+  });
+
+  it('returns verified:false for an open session', async () => {
+    const a = agent();
+    const reg = await a.post('/api/auth/register').send({
+      email: 'open@example.com',
+      password: 'password123',
+    });
+    const userId = reg.body.user!.id as number;
+
+    stripeMock.checkout.sessions.retrieve.mockResolvedValue({
+      id: 'cs_open',
+      mode: 'subscription',
+      payment_status: 'unpaid',
+      client_reference_id: String(userId),
+    });
+
+    const res = await a.get('/api/billing/session/cs_open');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ verified: false, sessionId: 'cs_open' });
+  });
+
+  it('verifies a paid session and activates the subscription', async () => {
+    const a = agent();
+    const reg = await a.post('/api/auth/register').send({
+      email: 'paidroute@example.com',
+      password: 'password123',
+    });
+    const userId = reg.body.user!.id as number;
+    const plan = seedPlan('price_paidroute');
+
+    stripeMock.checkout.sessions.retrieve.mockResolvedValue({
+      id: 'cs_paidroute',
+      mode: 'subscription',
+      payment_status: 'paid',
+      client_reference_id: String(userId),
+      customer: 'cus_paidroute',
+      subscription: {
+        id: 'sub_paidroute',
+        customer: 'cus_paidroute',
+        status: 'active',
+        items: {
+          data: [
+            {
+              current_period_end: 1_700_000_000,
+              price: { id: plan.stripePriceId },
+            },
+          ],
+        },
+      },
+    });
+
+    const res = await a.get('/api/billing/session/cs_paidroute');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      verified: true,
+      status: 'active',
+      sessionId: 'cs_paidroute',
+    });
+
+    const sub = getSubscriptionByUserId(db, userId);
+    expect(sub).toBeDefined();
+    expect(sub!.status).toBe('active');
+    expect(sub!.planId).toBe(plan.id);
   });
 });
 

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { app } from '../index.js';
+import { passwordResets } from '../db/schema.js';
 import { createTestDb, type TestDbHandle } from '../test/createTestDb.js';
 
 const agent = () => request.agent(app);
@@ -136,6 +137,158 @@ describe('GET /api/auth/me', () => {
     expect(res.status).toBe(200);
     expect(res.body.user.email).toBe('me@example.com');
     expect(res.body.user.passwordHash).toBeUndefined();
+  });
+});
+
+describe('POST /api/auth/forgot-password', () => {
+  let handle: TestDbHandle;
+
+  beforeEach(() => {
+    handle = createTestDb();
+  });
+
+  afterEach(() => {
+    handle.sqlite.close();
+  });
+
+  it('returns a reset URL for an existing user', async () => {
+    await agent()
+      .post('/api/auth/register')
+      .send({ email: 'forgot@example.com', password: 'password123' });
+
+    const res = await agent()
+      .post('/api/auth/forgot-password')
+      .send({ email: 'forgot@example.com' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.resetUrl).toMatch(/\/reset-password\?token=[a-f0-9]{64}$/);
+  });
+
+  it('returns resetUrl: null for an unknown email without revealing absence and creates no token', async () => {
+    const res = await agent()
+      .post('/api/auth/forgot-password')
+      .send({ email: 'unknown@example.com' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ resetUrl: null });
+
+    // Verify no token row was created
+    const rows = handle.db.select().from(passwordResets).all();
+    expect(rows).toHaveLength(0);
+  });
+
+  it('rejects invalid email format with 400', async () => {
+    const res = await agent().post('/api/auth/forgot-password').send({ email: 'not-an-email' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Please enter a valid email address.');
+  });
+});
+
+describe('POST /api/auth/reset-password', () => {
+  let handle: TestDbHandle;
+
+  beforeEach(() => {
+    handle = createTestDb();
+  });
+
+  afterEach(() => {
+    handle.sqlite.close();
+  });
+
+  it('resets the password with a valid token', async () => {
+    await agent()
+      .post('/api/auth/register')
+      .send({ email: 'reset@example.com', password: 'password123' });
+
+    const forgotRes = await agent()
+      .post('/api/auth/forgot-password')
+      .send({ email: 'reset@example.com' });
+
+    const resetUrl = new URL(forgotRes.body.resetUrl);
+    const token = resetUrl.searchParams.get('token')!;
+
+    const res = await agent()
+      .post('/api/auth/reset-password')
+      .send({ token, password: 'newpassword456' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true });
+
+    const loginRes = await agent()
+      .post('/api/auth/login')
+      .send({ email: 'reset@example.com', password: 'newpassword456' });
+    expect(loginRes.status).toBe(200);
+  });
+
+  it('rejects an invalid or expired token with 400', async () => {
+    const res = await agent()
+      .post('/api/auth/reset-password')
+      .send({ token: 'invalid-token', password: 'newpassword456' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Invalid or expired reset token');
+  });
+
+  it('rejects a password shorter than 8 characters with 400', async () => {
+    const res = await agent()
+      .post('/api/auth/reset-password')
+      .send({ token: 'some-token', password: 'short' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Password must be at least 8 characters.');
+  });
+
+  it('logs the user in with the new password and rejects the old password after reset', async () => {
+    await agent()
+      .post('/api/auth/register')
+      .send({ email: 'new-old@example.com', password: 'password123' });
+
+    const forgotRes = await agent()
+      .post('/api/auth/forgot-password')
+      .send({ email: 'new-old@example.com' });
+
+    const resetUrl = new URL(forgotRes.body.resetUrl);
+    const token = resetUrl.searchParams.get('token')!;
+
+    const resetRes = await agent()
+      .post('/api/auth/reset-password')
+      .send({ token, password: 'newpassword456' });
+    expect(resetRes.status).toBe(200);
+
+    const newLogin = await agent()
+      .post('/api/auth/login')
+      .send({ email: 'new-old@example.com', password: 'newpassword456' });
+    expect(newLogin.status).toBe(200);
+
+    const oldLogin = await agent()
+      .post('/api/auth/login')
+      .send({ email: 'new-old@example.com', password: 'password123' });
+    expect(oldLogin.status).toBe(401);
+  });
+
+  it('invalidates the existing session after a successful reset', async () => {
+    const a = agent();
+    await a
+      .post('/api/auth/register')
+      .send({ email: 'session-invalidate@example.com', password: 'password123' });
+
+    const before = await a.get('/api/auth/me');
+    expect(before.status).toBe(200);
+
+    const forgotRes = await agent()
+      .post('/api/auth/forgot-password')
+      .send({ email: 'session-invalidate@example.com' });
+    const resetUrl = new URL(forgotRes.body.resetUrl);
+    const token = resetUrl.searchParams.get('token')!;
+
+    const resetRes = await a
+      .post('/api/auth/reset-password')
+      .send({ token, password: 'newpassword456' });
+    expect(resetRes.status).toBe(200);
+
+    const after = await a.get('/api/auth/me');
+    expect(after.status).toBe(401);
   });
 });
 

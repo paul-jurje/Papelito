@@ -1,4 +1,6 @@
 import './config/env.js';
+import { dirname, resolve, basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express, { type Application } from 'express';
 import session, { type Store } from 'express-session';
@@ -19,6 +21,11 @@ const SQLiteStore = connectSqlite3(session) as unknown as new (
 
 export function buildApp(): Application {
   const app: Application = express();
+
+  // Enable trust proxy so secure cookies work behind reverse proxies (like fly.io)
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
 
   // Allow the Vite dev server (5173) and the production web origin to call
   // the API with cookies. `credentials: true` is required so the browser
@@ -42,11 +49,18 @@ export function buildApp(): Application {
   app.use(express.json());
 
   const isTest = process.env.NODE_ENV === 'test';
-  const sessionDb = process.env.SESSION_DB ?? (isTest ? ':memory:' : 'sessions.db');
+  let sessionDb = process.env.SESSION_DB ?? (isTest ? ':memory:' : 'sessions.db');
+  if (sessionDb !== ':memory:' && !sessionDb.startsWith('file:') && !sessionDb.startsWith('/')) {
+    const here = dirname(fileURLToPath(import.meta.url));
+    sessionDb = resolve(here, '../', sessionDb);
+  }
 
   app.use(
     session({
-      store: new SQLiteStore({ db: sessionDb, dir: '.' }),
+      store: new SQLiteStore({
+        db: sessionDb === ':memory:' ? sessionDb : basename(sessionDb),
+        dir: sessionDb === ':memory:' ? undefined : dirname(sessionDb),
+      }),
       secret: process.env.SESSION_SECRET ?? 'dev-secret-do-not-use-in-prod',
       resave: false,
       saveUninitialized: false,

@@ -2,8 +2,15 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { useAuth } from '../hooks/useAuth';
+import { api } from '../lib/api';
 
-type ReturnState = 'loading' | 'success' | 'cancelled';
+interface VerifySessionResponse {
+  verified: boolean;
+  status?: string;
+  sessionId: string;
+}
+
+type ReturnState = 'loading' | 'success' | 'pending' | 'cancelled';
 
 /**
  * Stripe Checkout redirects the browser back to this page with either
@@ -11,8 +18,12 @@ type ReturnState = 'loading' | 'success' | 'cancelled';
  * `?success=false` (no `session_id`) when the user cancels.
  *
  * Success path:
- *   1. Refresh `/api/auth/me` so `isSubscriber` reflects the webhook update.
- *   2. Navigate to `/editor`.
+ *   1. Call /api/billing/session/:sessionId to verify payment directly with
+ *      Stripe and activate the local subscription immediately.
+ *   2. If verified, refresh auth state and navigate to `/editor`.
+ *   3. If not verified yet, poll for up to ~15 seconds.
+ *   4. If still not verified, show a "still waiting" message instead of
+ *      redirecting to a route that may return 403.
  *
  * Cancel path:
  *   Stay on the page and show a friendly message with a link back to the
@@ -37,23 +48,51 @@ export function CheckoutReturnPage(): ReactNode {
       setState('loading');
       (async () => {
         try {
-          // The webhook may not have arrived yet, so give Stripe a moment
-          // before polling. Two attempts are usually enough for local dev
-          // with the Stripe CLI forwarding the event.
-          for (let attempt = 0; attempt < 3; attempt += 1) {
-            await refresh();
-            // We can't read `isSubscriber` directly here without re-running
-            // the effect, so rely on the timing: refresh resolves after the
-            // /me fetch returns.
-            await new Promise((resolve) => setTimeout(resolve, 750));
+          if (!sessionId) {
+            throw new Error('Missing session id');
           }
-          setState('success');
-          navigate('/editor', { replace: true });
+
+          const verifyUrl = `/api/billing/session/${encodeURIComponent(sessionId)}`;
+
+          // Poll the session verification endpoint. Stripe usually confirms
+          // payment within a second or two, but we give it a generous window
+          // before asking the user to refresh manually.
+          const maxAttempts = 10;
+          const pollIntervalMs = 1_500;
+
+          for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+            const result = await api<VerifySessionResponse>(verifyUrl);
+
+            if (result.verified) {
+              await refresh();
+              setState('success');
+              navigate('/editor', { replace: true });
+              return;
+            }
+
+            if (attempt < maxAttempts - 1) {
+              await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+            }
+          }
+
+          // Still not confirmed after max attempts. Keep the user on a
+          // friendly pending screen instead of redirecting to a 403.
+          setState('pending');
         } catch (err: unknown) {
           setError(err instanceof Error ? err.message : 'Could not finalize your subscription.');
-          setState('success');
-          // Still navigate — the user paid, they shouldn't be stuck here.
-          navigate('/editor', { replace: true });
+          // Fall back to the legacy auth-refresh loop. The webhook may still
+          // arrive and update /api/auth/me, so we give it a few attempts
+          // before giving up.
+          try {
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+              await refresh();
+              await new Promise((resolve) => setTimeout(resolve, 750));
+            }
+            setState('success');
+            navigate('/editor', { replace: true });
+          } catch {
+            setState('pending');
+          }
         }
       })();
       return;
@@ -67,11 +106,7 @@ export function CheckoutReturnPage(): ReactNode {
     // Missing or unrecognised query string: treat as a cancel so the user
     // gets a sensible landing rather than a blank loading screen.
     setState('cancelled');
-  }, [successFlag, refresh, navigate]);
-
-  // We deliberately don't block the success view on the auth refetch above;
-  // navigate('/editor') will trigger ProtectedRoute which redirects
-  // unauthenticated users to /login. While in flight, show a calm status.
+  }, [successFlag, sessionId, refresh, navigate]);
 
   if (state === 'cancelled') {
     return (
@@ -99,6 +134,46 @@ export function CheckoutReturnPage(): ReactNode {
               >
                 Back to pricing
               </Link>
+              <Link to="/" className="text-sm font-medium text-slate-600 hover:text-slate-900">
+                Go to homepage
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (state === 'pending') {
+    return (
+      <div
+        data-testid="checkout-return"
+        data-state="pending"
+        className="flex min-h-screen flex-col bg-white"
+      >
+        <Header />
+        <main className="flex flex-1 items-center justify-center px-6 py-12">
+          <div
+            data-testid="checkout-pending"
+            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm"
+          >
+            <h1 className="text-2xl font-semibold text-slate-900">Payment pending confirmation</h1>
+            <p className="mt-3 text-sm text-slate-600">
+              We&apos;re still waiting for Stripe to confirm your payment. Refresh this page in a
+              moment or check your email for a receipt.
+            </p>
+            {sessionId !== null && (
+              <p className="mt-4 break-all text-xs text-slate-400">Session: {sessionId}</p>
+            )}
+            <div className="mt-6 flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                data-testid="checkout-reload"
+                className="inline-flex items-center justify-center rounded-md bg-slate-900 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-slate-800"
+              >
+                Refresh status
+              </button>
               <Link to="/" className="text-sm font-medium text-slate-600 hover:text-slate-900">
                 Go to homepage
               </Link>
