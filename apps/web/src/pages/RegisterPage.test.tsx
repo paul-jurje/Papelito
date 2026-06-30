@@ -273,4 +273,20 @@ describe('RegisterPage', () => {
       }),
     );
   });
+
+  it('renders a Google sign-in link that forwards the next parameter', async () => {
+    mockMeAsUnauthenticated();
+    renderRegisterAt('/register?next=/foo');
+
+    const link = await screen.findByRole('link', { name: /continue with google/i });
+    expect(link).toHaveAttribute('href', '/api/auth/google?next=%2Ffoo');
+  });
+
+  it('sanitizes a protocol-relative next URL in the Google sign-in link', async () => {
+    mockMeAsUnauthenticated();
+    renderRegisterAt('/register?next=//evil.com');
+
+    const link = await screen.findByRole('link', { name: /continue with google/i });
+    expect(link).toHaveAttribute('href', '/api/auth/google?next=%2Feditor');
+  });
 });

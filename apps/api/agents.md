@@ -94,6 +94,21 @@ local `plans` table and exposed to the frontend.
   Stripe price id on the subscription's item(s). Webhooks remain the source of
   truth for renewals, cancellations, and charge failures.
 
+## Google OAuth
+
+Optional Google sign-in configured via `GOOGLE_CLIENT_ID` and
+`GOOGLE_CLIENT_SECRET`. Set these env vars to enable "Continue with Google".
+`GOOGLE_CALLBACK_URL` is optional and defaults to
+`WEB_ORIGIN + /api/auth/google/callback`.
+
+- `GET /api/auth/google` starts the OAuth flow and requests the `email` scope.
+  Pass a `next` query parameter to control where the user lands after success.
+- `GET /api/auth/google/callback` completes the flow. On success it redirects
+  to the validated `next` URL (default `/editor`); on failure it redirects to
+  `/login?error=oauth_failed`.
+- `password_hash` is now nullable. OAuth-only users have `google_id` populated
+  instead of a password hash.
+
 ## Password reset
 
 Self-service password reset with single-use tokens.

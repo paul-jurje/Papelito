@@ -1,14 +1,16 @@
 export interface User {
   id: number;
   email: string;
-  passwordHash: string;
+  passwordHash: string | null;
+  googleId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface CreateUserInput {
   email: string;
-  passwordHash: string;
+  passwordHash?: string | null;
+  googleId?: string | null;
 }
 
 export const EMPTY_PROSEMIRROR_DOC = '{"type":"doc","content":[]}';

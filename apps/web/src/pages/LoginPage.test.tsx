@@ -229,4 +229,20 @@ describe('LoginPage', () => {
       }),
     );
   });
+
+  it('renders a Google sign-in link that forwards the next parameter', async () => {
+    mockMeAsUnauthenticated();
+    renderLoginAt('/login?next=/foo');
+
+    const link = await screen.findByRole('link', { name: /continue with google/i });
+    expect(link).toHaveAttribute('href', '/api/auth/google?next=%2Ffoo');
+  });
+
+  it('sanitizes a protocol-relative next URL in the Google sign-in link', async () => {
+    mockMeAsUnauthenticated();
+    renderLoginAt('/login?next=//evil.com');
+
+    const link = await screen.findByRole('link', { name: /continue with google/i });
+    expect(link).toHaveAttribute('href', '/api/auth/google?next=%2Feditor');
+  });
 });

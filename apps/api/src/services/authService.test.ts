@@ -34,8 +34,8 @@ describe('authService.register', () => {
     expect(stored).toBeDefined();
     expect(stored!.passwordHash).not.toBe('supersecret');
     expect(stored!.passwordHash).toMatch(/^\$2[aby]\$/);
-    await expect(verifyPassword('supersecret', stored!.passwordHash)).resolves.toBe(true);
-    await expect(verifyPassword('wrong', stored!.passwordHash)).resolves.toBe(false);
+    await expect(verifyPassword('supersecret', stored!.passwordHash!)).resolves.toBe(true);
+    await expect(verifyPassword('wrong', stored!.passwordHash!)).resolves.toBe(false);
   });
 
   it('throws EmailAlreadyExistsError for duplicate emails', async () => {

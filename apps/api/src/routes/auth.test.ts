@@ -1,8 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
+import type { Request, Response, NextFunction } from 'express';
 import { app } from '../index.js';
 import { passwordResets } from '../db/schema.js';
 import { createTestDb, type TestDbHandle } from '../test/createTestDb.js';
+import passport from '../lib/passport.js';
 
 const agent = () => request.agent(app);
 
@@ -324,5 +326,82 @@ describe('POST /api/auth/logout', () => {
     const res = await request(app).post('/api/auth/logout');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ success: true });
+  });
+});
+
+describe('GET /api/auth/google', () => {
+  it('redirects to Google authorization endpoint', async () => {
+    const res = await request(app).get('/api/auth/google');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toMatch(/^https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth/);
+  });
+});
+
+describe('GET /api/auth/google/callback', () => {
+  let authenticateSpy: ReturnType<typeof vi.spyOn> | undefined;
+
+  afterEach(() => {
+    authenticateSpy?.mockRestore();
+  });
+
+  function mockGoogleSuccess() {
+    authenticateSpy = vi.spyOn(passport, 'authenticate').mockImplementation(((
+      _strategy: string,
+      _options: unknown,
+    ) => {
+      return (req: Request, _res: Response, next: NextFunction) => {
+        req.user = { id: 1, email: 'test@example.com' } as Express.User;
+        next();
+      };
+    }) as (...args: unknown[]) => (req: Request, res: Response, next: NextFunction) => void);
+  }
+
+  function mockGoogleFailure() {
+    authenticateSpy = vi.spyOn(passport, 'authenticate').mockImplementation(((
+      _strategy: string,
+      _options: unknown,
+    ) => {
+      return (_req: Request, res: Response, _next: NextFunction) => {
+        res.redirect('/login?error=oauth_failed');
+      };
+    }) as (...args: unknown[]) => (req: Request, res: Response, next: NextFunction) => void);
+  }
+
+  function encodeState(next: string): string {
+    return Buffer.from(JSON.stringify({ next })).toString('base64');
+  }
+
+  it('redirects to the next URL from state on successful callback', async () => {
+    mockGoogleSuccess();
+    const state = encodeState('/foo');
+    const res = await request(app).get(
+      `/api/auth/google/callback?state=${encodeURIComponent(state)}`,
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/foo');
+  });
+
+  it('redirects to /editor when state is missing on successful callback', async () => {
+    mockGoogleSuccess();
+    const res = await request(app).get('/api/auth/google/callback');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/editor');
+  });
+
+  it('redirects to /editor when state contains a protocol-relative next URL', async () => {
+    mockGoogleSuccess();
+    const state = encodeState('//evil.com');
+    const res = await request(app).get(
+      `/api/auth/google/callback?state=${encodeURIComponent(state)}`,
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/editor');
+  });
+
+  it('redirects to /login?error=oauth_failed on authentication failure', async () => {
+    mockGoogleFailure();
+    const res = await request(app).get('/api/auth/google/callback');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/login?error=oauth_failed');
   });
 });

@@ -20,7 +20,7 @@ export function HeroSection(): JSX.Element {
           data-testid="hero-headline"
         >
           Write more.
-          <span className="block mt-1 bg-gradient-to-r from-indigo-600 via-indigo-900 to-indigo-600 bg-clip-text text-transparent">
+          <span className="block mt-1 bg-gradient-to-r from-indigo-600 via-indigo-900 to-indigo-600 bg-clip-text text-transparent pb-2">
             Worry less.
           </span>
         </h1>
@@ -31,11 +31,11 @@ export function HeroSection(): JSX.Element {
 
         <div className="mt-10 flex flex-col items-center justify-center gap-3.5 sm:flex-row">
           <Link
-            to="/register?next=/editor"
+            to="/editor"
             className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-6 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition-all hover:shadow-md hover:scale-[1.01]"
             data-testid="hero-cta"
           >
-            Start writing for 5,99 €/mo
+            Start writing for 4,59 €/mo
           </Link>
           <a
             href="#features"
