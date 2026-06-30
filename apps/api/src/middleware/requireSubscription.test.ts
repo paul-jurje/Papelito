@@ -16,6 +16,7 @@ function buildApp(opts: { userId?: number } = {}) {
     ? {
         id: opts.userId,
         email: 'sub@example.com',
+        googleId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       }

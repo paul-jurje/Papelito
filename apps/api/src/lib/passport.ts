@@ -14,6 +14,11 @@ passport.use(
         if (!user) {
           return done(null, false, { message: 'Invalid email or password' });
         }
+        if (!user.passwordHash) {
+          return done(null, false, {
+            message: 'This account uses Google sign-in. Please log in with Google.',
+          });
+        }
         const ok = await verifyPassword(password, user.passwordHash);
         if (!ok) {
           return done(null, false, { message: 'Invalid email or password' });

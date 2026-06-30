@@ -64,8 +64,8 @@ describe('passwordResetService', () => {
       await resetPassword(token, 'newpassword456');
 
       const updatedUser = db.select().from(users).where(eq(users.email, 'reset@example.com')).get();
-      expect(await verifyPassword('newpassword456', updatedUser!.passwordHash)).toBe(true);
-      expect(await verifyPassword('old-hash', updatedUser!.passwordHash)).toBe(false);
+      expect(await verifyPassword('newpassword456', updatedUser!.passwordHash!)).toBe(true);
+      expect(await verifyPassword('old-hash', updatedUser!.passwordHash!)).toBe(false);
       expect(await getPasswordResetByTokenHash(tokenHash)).toBeUndefined();
     });
 
