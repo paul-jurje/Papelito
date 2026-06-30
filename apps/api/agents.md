@@ -94,6 +94,31 @@ local `plans` table and exposed to the frontend.
   Stripe price id on the subscription's item(s). Webhooks remain the source of
   truth for renewals, cancellations, and charge failures.
 
+## Google OAuth
+
+Optional Google sign-in using `passport-google-oauth20` alongside the existing
+email/password flow.
+
+- New env vars (required to enable Google sign-in):
+  - `GOOGLE_CLIENT_ID`
+  - `GOOGLE_CLIENT_SECRET`
+  - Optional: `GOOGLE_CALLBACK_URL` (defaults to `WEB_ORIGIN + /api/auth/google/callback`)
+- `password_hash` is nullable and `google_id` is stored on the `users` table,
+  so OAuth-only accounts can exist.
+- `GET /api/auth/google` initiates the OAuth flow. It accepts a `next` query
+  parameter, base64-encodes it in the OAuth `state`, and requests the `email`
+  scope only.
+- `GET /api/auth/google/callback` completes the flow. On success it decodes
+  the state and redirects to the validated `next` URL (default `/editor`). On
+  failure it redirects to `/login?error=oauth_failed`.
+- `findOrCreateUserFromGoogle` in `src/services/oauthService.ts` matches by
+  `google_id`, auto-links to an existing email/password user when emails match,
+  or creates a new OAuth-only user.
+- Local login rejects accounts with `password_hash === null` with the message
+  "This account uses Google sign-in. Please log in with Google."
+- Test setup (`src/test/setup.ts`) seeds placeholder Google credentials so the
+  strategy is registered in the test environment.
+
 ## Password reset
 
 Self-service password reset with single-use tokens.
