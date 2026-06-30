@@ -148,7 +148,13 @@ authRouter.get('/google', (req, res, next) => {
 
 authRouter.get(
   '/google/callback',
-  passport.authenticate('google', { failureRedirect: '/login?error=oauth_failed' }),
+  (req, res, next) => {
+    passport.authenticate('google', { failureRedirect: '/login?error=oauth_failed' })(
+      req,
+      res,
+      next,
+    );
+  },
   (req, res) => {
     let nextUrl = '/editor';
     try {
