@@ -12,3 +12,9 @@ process.env.NODE_ENV = 'test';
 // needed to satisfy the module-load guard.
 process.env.STRIPE_SECRET_KEY = 'sk_test_setup_placeholder';
 process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_setup_placeholder';
+
+// Google OAuth strategy is registered at module load time in
+// `src/lib/passport.ts` only when both client id and secret are present.
+// Tests that hit `/api/auth/google` need the strategy configured.
+process.env.GOOGLE_CLIENT_ID = 'google_test_client_id';
+process.env.GOOGLE_CLIENT_SECRET = 'google_test_client_secret';
