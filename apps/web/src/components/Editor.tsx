@@ -86,7 +86,7 @@ export function Editor({
           role="toolbar"
           aria-label="Formatting"
           data-testid="editor-toolbar"
-          className="flex flex-wrap gap-1.5 border-b border-slate-150 bg-slate-50/80 backdrop-blur-xs px-6 py-3"
+          className="sticky top-0 z-10 flex flex-wrap gap-1.5 border-b border-slate-150 bg-gray-50 backdrop-blur-xs px-6 py-3"
         >
           <ToolbarButton
             label="Bold"
