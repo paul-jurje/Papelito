@@ -9,6 +9,14 @@ import { isActiveSubscriptionStatus } from '../types/subscription.js';
 
 export const authRouter = Router();
 
+function resolveNext(value: unknown): string {
+  if (typeof value !== 'string') return '/editor';
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return '/editor';
+  if (trimmed.startsWith('//')) return '/editor';
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+}
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -127,3 +135,33 @@ authRouter.get('/me', requireAuth, (req, res) => {
   const isSubscriber = isActiveSubscriptionStatus(sub?.status);
   res.json({ user: req.user, isSubscriber });
 });
+
+// Google OAuth routes
+authRouter.get('/google', (req, res, next) => {
+  const nextUrl = resolveNext(req.query.next);
+  const state = Buffer.from(JSON.stringify({ next: nextUrl })).toString('base64');
+  passport.authenticate('google', {
+    scope: ['email'],
+    state,
+  })(req, res, next);
+});
+
+authRouter.get(
+  '/google/callback',
+  passport.authenticate('google', { failureRedirect: '/login?error=oauth_failed' }),
+  (req, res) => {
+    let nextUrl = '/editor';
+    try {
+      const stateParam = req.query.state;
+      if (typeof stateParam === 'string') {
+        const parsed = JSON.parse(Buffer.from(stateParam, 'base64').toString('utf8')) as {
+          next?: string;
+        };
+        nextUrl = resolveNext(parsed.next ?? null);
+      }
+    } catch {
+      // ignore malformed state
+    }
+    res.redirect(nextUrl);
+  },
+);

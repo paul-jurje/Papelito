@@ -326,3 +326,11 @@ describe('POST /api/auth/logout', () => {
     expect(res.body).toEqual({ success: true });
   });
 });
+
+describe('GET /api/auth/google', () => {
+  it('redirects to Google authorization endpoint', async () => {
+    const res = await request(app).get('/api/auth/google');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toMatch(/^https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth/);
+  });
+});
