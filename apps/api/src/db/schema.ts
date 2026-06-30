@@ -15,7 +15,8 @@ const autoUpdatedAt = (name: string) =>
 export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   email: text('email').notNull().unique(),
-  passwordHash: text('password_hash').notNull(),
+  passwordHash: text('password_hash'),
+  googleId: text('google_id').unique(),
   createdAt: timestamp('created_at'),
   updatedAt: autoUpdatedAt('updated_at'),
 });
