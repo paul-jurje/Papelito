@@ -275,3 +275,10 @@ paid product:
   dual license).
 
 See `docs/plan.md` for the full license review.
+
+## Trade-offs made during implementation
+
+- most db is using id auto increment instead of UUID as I deemed it sufficient for this MVP, though did change the documents as those get exposed more often
+- would add more rich text editor features, though I feel like that was not the point of this MVP
+- would add more security like password hashing for auth, more complex passowords and proper password reset flow
+- would research more on the marketing site desing as it is kinda generic really 
