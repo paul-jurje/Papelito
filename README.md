@@ -235,6 +235,33 @@ price.
   `checkout.session.completed`) resolve the matching local `planId` from the
   Stripe price id on the subscription item(s).
 
+## How Documents Are Saved
+
+Papelito does not store files on disk or in object storage. Each document is
+saved as structured data in the same SQLite database:
+
+- **Editor output**: Tiptap serializes the editor content to a ProseMirror
+  JSON document (`{ type: "doc", content: [...] }`).
+- **Save endpoint**: `PATCH /api/documents/:id` accepts an optional `title`
+  and/or `content`. The API validates that `content` is a JSON object whose
+  top-level `type` is `"doc"` and stringifies it before storing.
+- **Storage**: `documentRepository` writes the title and serialized content
+  to the `documents` table via Drizzle ORM. The `content` column is a
+  `text` field holding the JSON string.
+- **Ownership**: every document belongs to the authenticated user who created
+  it. All read/write queries include `user_id`, so users can never access
+  another user's documents.
+- **Identifiers**: documents use UUID primary keys (unlike the autoincrement
+  integer IDs used for users and subscriptions) because document IDs are
+  exposed in URLs.
+- **Title rules**: titles are trimmed, must be non-empty, and are capped at
+  200 characters.
+- **Auto-save**: the frontend debounces editor changes and calls the PATCH
+  endpoint to persist content as the user types.
+
+There is no support for binary file uploads (images, PDFs, etc.) in the
+current MVP.
+
 ## How Subscription Gating Works
 
 1. The user clicks **Subscribe** on the marketing site (or the upsell page
@@ -281,4 +308,5 @@ See `docs/plan.md` for the full license review.
 - most db is using id auto increment instead of UUID as I deemed it sufficient for this MVP, though did change the documents as those get exposed more often
 - would add more rich text editor features, though I feel like that was not the point of this MVP
 - would add more security like password hashing for auth, more complex passowords and proper password reset flow
-- would research more on the marketing site desing as it is kinda generic really 
+- would research more on the marketing site desing as it is kinda generic really
+- would store the documents in a file storage (much like AWS S3, Google Cloud Storage etc) instead of the database as this will not work long term nor for large files
