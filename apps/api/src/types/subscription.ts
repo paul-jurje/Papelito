@@ -4,12 +4,12 @@ import type Stripe from 'stripe';
 
 /**
  * Stripe subscription statuses that grant the user access to subscriber-only
- * features (the editor). We treat `active` and `trialing` as "subscribed".
+ * features (the editor). We treat `active` as "subscribed".
  *
  * Other statuses (`past_due`, `unpaid`, `incomplete`, `incomplete_expired`,
  * `canceled`, `paused`) deny access.
  */
-export const ACTIVE_SUBSCRIPTION_STATUSES = ['active', 'trialing'] as const;
+export const ACTIVE_SUBSCRIPTION_STATUSES = ['active'] as const;
 export type ActiveSubscriptionStatus = (typeof ACTIVE_SUBSCRIPTION_STATUSES)[number];
 
 export function isActiveSubscriptionStatus(
@@ -53,9 +53,9 @@ export function isCheckoutSessionCompleted(
 
 export function isCustomerSubscriptionUpdated(event: Stripe.Event): event is Stripe.Event & {
   type:
-    | 'customer.subscription.created'
-    | 'customer.subscription.updated'
-    | 'customer.subscription.deleted';
+  | 'customer.subscription.created'
+  | 'customer.subscription.updated'
+  | 'customer.subscription.deleted';
 } {
   return (
     event.type === 'customer.subscription.created' ||
