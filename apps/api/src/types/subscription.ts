@@ -53,9 +53,9 @@ export function isCheckoutSessionCompleted(
 
 export function isCustomerSubscriptionUpdated(event: Stripe.Event): event is Stripe.Event & {
   type:
-  | 'customer.subscription.created'
-  | 'customer.subscription.updated'
-  | 'customer.subscription.deleted';
+    | 'customer.subscription.created'
+    | 'customer.subscription.updated'
+    | 'customer.subscription.deleted';
 } {
   return (
     event.type === 'customer.subscription.created' ||
